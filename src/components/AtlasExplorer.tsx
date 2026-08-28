@@ -8,7 +8,8 @@ const allPois = poisData.pois as Poi[];
 
 function readInitial() {
   if (typeof window === 'undefined') return { q: '', season: '', province: '', year: '' };
-  const oldHash = decodeURIComponent(location.hash.replace(/^#\//, '')).replace(/\+/g, ' ');
+  let oldHash = '';
+  try { oldHash = decodeURIComponent(location.hash.replace(/^#\//, '')).replace(/\+/g, ' '); } catch { oldHash = ''; }
   const p = new URLSearchParams(location.search);
   return { q: p.get('q') || oldHash, season: p.get('season') || '', province: p.get('province') || '', year: p.get('year') || '' };
 }
@@ -81,6 +82,7 @@ export default function AtlasExplorer() {
 
   const update = (key: keyof typeof filters, value: string) => setFilters(current => ({ ...current, [key]: value }));
   const nearMe = () => navigator.geolocation?.getCurrentPosition(({ coords }) => map.current?.flyTo({ center: [coords.longitude, coords.latitude], zoom: 8 }), () => undefined, { timeout: 8000 });
+  const hasActiveFilters = Object.values(filters).some(Boolean);
 
   return <section className="explorer" aria-label="Atlas explorer">
     <div className="explorer__toolbar">
@@ -92,7 +94,7 @@ export default function AtlasExplorer() {
         <button className="button button--ghost" onClick={nearMe} type="button">Near me</button>
         <button className="button button--ghost" onClick={() => setFilters({ q: '', season: '', province: '', year: '' })} type="button">Reset</button>
       </div>
-      <p className="results-count" aria-live="polite"><strong>{filtered.length}</strong> adventures on the map</p>
+      <p className="results-count" aria-live="polite"><strong>{filtered.length}</strong> {filtered.length === 1 ? 'adventure' : 'adventures'} found</p>
     </div>
     <div className="map-stage">
       <div ref={mapElement} className="map-canvas" aria-label="Interactive map of Atlas locations" />
@@ -102,6 +104,6 @@ export default function AtlasExplorer() {
     <aside className={`results-sheet ${selected.length ? 'is-open' : ''}`} aria-label="Selected location" aria-live="polite">
       {selected.length > 0 && <><button className="sheet-close" onClick={() => setSelected([])} aria-label="Close selected location">×</button><p className="eyebrow">At this location · {selected.length} {selected.length === 1 ? 'story' : 'stories'}</p>{selected.map(p => <a className="result-card" href={`/places/${p.slug}`} key={p.id}><img className="result-card__media" src={p.video.thumbnailUrl} alt="" loading="lazy" /><span className="result-card__body"><span className="result-card__meta">S{p.season} E{p.episode} · {p.broadcastYear}</span><strong>{p.title}</strong><span>{p.locationLabel}</span></span></a>)}</>}
     </aside>
-    <div className="mobile-results" aria-label="Filtered results">{filtered.slice(0, 12).map(p => <a className="result-card" href={`/places/${p.slug}`} key={p.id}><img className="result-card__media" src={p.video.thumbnailUrl} alt="" loading="lazy" /><span className="result-card__body"><span className="result-card__meta">S{p.season} E{p.episode}</span><strong>{p.title}</strong><span>{p.locationLabel}</span></span></a>)}</div>
+    {hasActiveFilters && selected.length === 0 && <div className="mobile-results" aria-label="Filtered results">{filtered.length === 0 ? <div className="empty-result"><strong>No stops match that search.</strong><span>Try a city, province, title, or clear a filter.</span></div> : filtered.slice(0, 8).map(p => <a className="result-card" href={`/places/${p.slug}`} key={p.id}><img className="result-card__media" src={p.video.thumbnailUrl} alt="" loading="lazy" /><span className="result-card__body"><span className="result-card__meta">S{p.season} E{p.episode}</span><strong>{p.title}</strong><span>{p.locationLabel}</span></span></a>)}</div>}
   </section>;
 }
