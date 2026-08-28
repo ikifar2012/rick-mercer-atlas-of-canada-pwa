@@ -101,6 +101,11 @@ export default function AtlasExplorer() {
         <button className="round-action" onClick={nearMe} type="button" aria-label="Show my location">⌖</button>
       </div>
       <div className="sheet-summary"><div><strong>{selected.length ? `${selected.length} at this location` : `${filtered.length} adventures`}</strong><span>{selected.length ? selected[0]?.locationLabel : hasActiveFilters ? 'Matching your search' : 'Across Canada'}</span></div>{(hasActiveFilters || selected.length > 0) && <button type="button" onClick={() => selected.length ? setSelected([]) : setFilters({ q: '', season: '', province: '', year: '' })}>{selected.length ? 'Back' : 'Clear'}</button>}</div>
+      <div className="sheet-places" aria-label="Explore the Atlas">
+        <button type="button" onClick={() => { setFilters({ q: '', season: '', province: '', year: '' }); setSheetExpanded(true); }}><span aria-hidden="true">⌾</span><strong>All Stops</strong><small>486 places</small></button>
+        <button type="button" onClick={nearMe}><span aria-hidden="true">↗</span><strong>Near Me</strong><small>Explore nearby</small></button>
+        <button type="button" onClick={() => { setFilters({ q: '', season: String(seasons[0]), province: '', year: '' }); setSheetExpanded(true); }}><span aria-hidden="true">✦</span><strong>Latest</strong><small>Season {seasons[0]}</small></button>
+      </div>
       <div className="filter-row">
         <select aria-label="Season" value={filters.season} onChange={e => { update('season', e.target.value); setSheetExpanded(true); }}><option value="">Season</option>{seasons.map(x => <option key={x} value={x}>Season {x}</option>)}</select>
         <select aria-label="Province or territory" value={filters.province} onChange={e => { update('province', e.target.value); setSheetExpanded(true); }}><option value="">Province</option>{provinces.map(x => <option key={x!} value={x!}>{x}</option>)}</select>
