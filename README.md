@@ -7,7 +7,7 @@ A fast, installable fan archive of 486 Rick Mercer adventures across Canada. It 
 
 ## Features
 
-- MapLibre map with all locations, Canadian place autocomplete, and shared-location result sheets
+- Keyless MapLibre/OpenFreeMap map with all locations and shared-location result sheets
 - Search plus season, province/territory, and broadcast-year filters
 - Static, shareable pages for all 486 POIs
 - Explicit, transient “Near me” support
@@ -19,7 +19,7 @@ A fast, installable fan archive of 486 Rick Mercer adventures across Canada. It 
 ## Stack
 
 - Astro static output with React islands
-- MapLibre GL with MapTiler tiles and geocoding
+- MapLibre GL with the open-source OpenFreeMap basemap
 - Bun for dependencies and scripts
 - Cloudflare Workers Static Assets
 
@@ -33,11 +33,7 @@ cp .env.example .env
 bun run dev
 ```
 
-The application works without a map key in catalogue mode. To enable maps and Canadian autocomplete, add a domain-restricted MapTiler browser key to `.env`:
-
-```dotenv
-PUBLIC_MAPTILER_KEY=your_restricted_public_key
-```
+No map account or API key is required. Search runs locally across the archived titles, descriptions, and location labels.
 
 ## Commands
 
@@ -70,9 +66,8 @@ Run `bun run data:audit` after every correction. Do not edit the archived source
 ## Cloudflare deployment
 
 1. Authenticate with `bunx wrangler login`.
-2. Configure `PUBLIC_SITE_URL`, `PUBLIC_MAPTILER_KEY`, and `PUBLIC_ISSUES_URL` in the build environment.
-3. Restrict the MapTiler key to production and preview origins.
-4. Run `bun run deploy`, or connect the private repository to Workers Builds.
+2. Configure `PUBLIC_SITE_URL` and `PUBLIC_ISSUES_URL` in the build environment.
+3. Run `bun run deploy`, or connect the private repository to Workers Builds.
 
 The generated `dist` directory is served as static assets. No runtime API or database is required.
 

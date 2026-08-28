@@ -18,7 +18,6 @@ export default function AtlasExplorer() {
   const [selected, setSelected] = useState<Poi[]>([]);
   const [mapReady, setMapReady] = useState(false);
   const [mapError, setMapError] = useState(false);
-  const [suggestions, setSuggestions] = useState<Array<{ id: string; place_name: string; center: [number, number] }>>([]);
   const mapElement = useRef<HTMLDivElement>(null);
   const map = useRef<MapLibreMap | null>(null);
 
@@ -37,30 +36,11 @@ export default function AtlasExplorer() {
   }, [filters]);
 
   useEffect(() => {
-    const key = import.meta.env.PUBLIC_MAPTILER_KEY;
-    const query = filters.q.trim();
-    if (!key || query.length < 3) { setSuggestions([]); return; }
-    const controller = new AbortController();
-    const timer = window.setTimeout(async () => {
-      try {
-        const url = `https://api.maptiler.com/geocoding/${encodeURIComponent(query)}.json?key=${key}&country=ca&autocomplete=true&limit=5`;
-        const response = await fetch(url, { signal: controller.signal });
-        if (!response.ok) return;
-        const body = await response.json();
-        setSuggestions((body.features || []).map((feature: { id: string; place_name: string; center: [number, number] }) => ({ id: feature.id, place_name: feature.place_name, center: feature.center })));
-      } catch { /* Catalogue search remains available. */ }
-    }, 350);
-    return () => { window.clearTimeout(timer); controller.abort(); };
-  }, [filters.q]);
-
-  useEffect(() => {
     if (!mapElement.current || map.current) return;
-    const key = import.meta.env.PUBLIC_MAPTILER_KEY;
-    if (!key) { setMapError(true); return; }
     let cancelled = false;
     import('maplibre-gl').then((maplibregl) => {
       if (cancelled || !mapElement.current) return;
-      const instance = new maplibregl.Map({ container: mapElement.current, style: `https://api.maptiler.com/maps/streets-v2/style.json?key=${key}`, center: [-96, 58], zoom: 3, minZoom: 2 });
+      const instance = new maplibregl.Map({ container: mapElement.current, style: 'https://tiles.openfreemap.org/styles/liberty', center: [-96, 58], zoom: 3, minZoom: 2 });
       map.current = instance;
       instance.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right');
       instance.on('load', () => { setMapReady(true); });
@@ -91,13 +71,20 @@ export default function AtlasExplorer() {
     }
   }, [filtered, mapReady]);
 
+  useEffect(() => {
+    const instance = map.current;
+    if (!instance || !mapReady || filtered.length === 0 || filtered.length === allPois.length) return;
+    const longitudes = filtered.map((poi) => Number(poi.coordinates.longitude));
+    const latitudes = filtered.map((poi) => Number(poi.coordinates.latitude));
+    instance.fitBounds([[Math.min(...longitudes), Math.min(...latitudes)], [Math.max(...longitudes), Math.max(...latitudes)]], { padding: 70, maxZoom: 10, duration: 700 });
+  }, [filtered, mapReady]);
+
   const update = (key: keyof typeof filters, value: string) => setFilters(current => ({ ...current, [key]: value }));
   const nearMe = () => navigator.geolocation?.getCurrentPosition(({ coords }) => map.current?.flyTo({ center: [coords.longitude, coords.latitude], zoom: 8 }), () => undefined, { timeout: 8000 });
 
   return <section className="explorer" aria-label="Atlas explorer">
     <div className="explorer__toolbar">
-      <div className="search-wrap"><label className="search-box"><span className="sr-only">Search the archive</span><input value={filters.q} onChange={e => update('q', e.target.value)} placeholder="Search a place, title or adventure…" autoComplete="off" /></label>
-      {suggestions.length > 0 && <ul className="place-suggestions" aria-label="Canadian place suggestions">{suggestions.map(place => <li key={place.id}><button type="button" onClick={() => { map.current?.flyTo({ center: place.center, zoom: 8 }); setSuggestions([]); }}>{place.place_name}</button></li>)}</ul>}</div>
+      <div className="search-wrap"><label className="search-box"><span className="sr-only">Search the archive</span><input value={filters.q} onChange={e => update('q', e.target.value)} placeholder="Search a location, title or adventure…" autoComplete="off" /></label></div>
       <div className="filter-row">
         <select aria-label="Season" value={filters.season} onChange={e => update('season', e.target.value)}><option value="">All seasons</option>{seasons.map(x => <option key={x} value={x}>Season {x}</option>)}</select>
         <select aria-label="Province or territory" value={filters.province} onChange={e => update('province', e.target.value)}><option value="">All Canada</option>{provinces.map(x => <option key={x!} value={x!}>{x}</option>)}</select>
@@ -110,7 +97,7 @@ export default function AtlasExplorer() {
     <div className="map-stage">
       <div ref={mapElement} className="map-canvas" aria-label="Interactive map of Atlas locations" />
       {mapError && <div className="map-fallback"><strong>The map is taking the scenic route.</strong><span>The complete archive is still available below.</span></div>}
-      <div className="map-attribution">Map data © OpenStreetMap contributors</div>
+      <div className="map-attribution"><a href="https://openfreemap.org/">OpenFreeMap</a> · © <a href="https://www.openmaptiles.org/">OpenMapTiles</a> · Data © OpenStreetMap contributors</div>
     </div>
     <aside className={`results-sheet ${selected.length ? 'is-open' : ''}`} aria-label="Selected location" aria-live="polite">
       {selected.length > 0 && <><button className="sheet-close" onClick={() => setSelected([])} aria-label="Close selected location">×</button><p className="eyebrow">At this location · {selected.length} {selected.length === 1 ? 'story' : 'stories'}</p>{selected.map(p => <a className="result-card" href={`/places/${p.slug}`} key={p.id}><img className="result-card__media" src={p.video.thumbnailUrl} alt="" loading="lazy" /><span className="result-card__body"><span className="result-card__meta">S{p.season} E{p.episode} · {p.broadcastYear}</span><strong>{p.title}</strong><span>{p.locationLabel}</span></span></a>)}</>}
