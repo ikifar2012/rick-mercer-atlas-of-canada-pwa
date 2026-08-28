@@ -44,9 +44,15 @@ export default function AtlasExplorer() {
       if (cancelled || !mapElement.current) return;
       const instance = new maplibregl.Map({ container: mapElement.current, style: 'https://tiles.openfreemap.org/styles/dark', center: [-96, 58], zoom: 3, minZoom: 2 });
       map.current = instance;
+      const loadTimeout = window.setTimeout(() => {
+        if (!instance.loaded()) setMapError(true);
+      }, 12000);
       instance.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right');
-      instance.on('load', () => { setMapReady(true); });
-      instance.on('error', () => setMapError(true));
+      instance.on('load', () => {
+        window.clearTimeout(loadTimeout);
+        setMapError(false);
+        setMapReady(true);
+      });
     }).catch(() => setMapError(true));
     return () => { cancelled = true; map.current?.remove(); map.current = null; };
   }, []);
