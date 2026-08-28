@@ -264,10 +264,10 @@ body { color: var(--ink); background: #08090b; }
 .site-shell--fullscreen .masthead__actions,
 .map-sheet {
   border: 1px solid rgb(255 255 255 / .18);
-  background: linear-gradient(145deg, rgb(44 45 51 / .62), rgb(15 16 20 / .52));
+  background: linear-gradient(145deg, rgb(55 72 78 / .34), rgb(17 22 35 / .28));
   box-shadow: inset 0 1px 0 rgb(255 255 255 / .2), inset 0 -1px 0 rgb(255 255 255 / .04), 0 1rem 3.5rem rgb(0 0 0 / .48);
-  -webkit-backdrop-filter: saturate(160%) blur(32px);
-  backdrop-filter: saturate(160%) blur(32px);
+  -webkit-backdrop-filter: blur(38px) saturate(190%) brightness(.82) contrast(1.08);
+  backdrop-filter: blur(38px) saturate(190%) brightness(.82) contrast(1.08);
 }
 .site-shell--fullscreen .brand-mark,
 .site-shell--fullscreen .masthead__actions { color: #fff; }
@@ -275,7 +275,8 @@ body { color: var(--ink); background: #08090b; }
 .site-shell--fullscreen .masthead__actions a:hover { background: rgb(255 255 255 / .1); }
 .site-shell--fullscreen .archive-badge { border-color: rgb(255 105 97 / .55); color: #ff6961; }
 .map-sheet { isolation: isolate; color: #f5f5f7; }
-.map-sheet::before { position: absolute; z-index: -1; top: 0; right: 1.4rem; left: 1.4rem; height: 1px; background: linear-gradient(90deg, transparent, rgb(255 255 255 / .58), transparent); content: ''; }
+.map-sheet::before { position: absolute; z-index: -1; inset: 0; border-radius: inherit; background: radial-gradient(circle at 24% 0%, rgb(255 255 255 / .16), transparent 34%), linear-gradient(115deg, rgb(35 225 208 / .13), transparent 42%, rgb(72 94 255 / .12)); content: ''; pointer-events: none; }
+.map-sheet::after { position: absolute; z-index: 2; top: 0; right: 1.4rem; left: 1.4rem; height: 1px; background: linear-gradient(90deg, transparent, rgb(255 255 255 / .62), transparent); content: ''; pointer-events: none; }
 .sheet-handle span { background: rgb(235 235 245 / .36); box-shadow: 0 1px 0 rgb(255 255 255 / .12); }
 .map-sheet .search-box,
 .round-action,
@@ -301,10 +302,10 @@ body { color: var(--ink); background: #08090b; }
 
 @media (max-width: 760px) {
   .site-shell--fullscreen .masthead { display: none; }
-  .map-sheet { right: .65rem; bottom: max(.65rem, env(safe-area-inset-bottom)); left: .65rem; width: auto; max-height: 21rem; padding: .25rem .8rem .85rem; border: 1px solid rgb(255 255 255 / .2); border-radius: 2.1rem; background: linear-gradient(145deg, rgb(18 137 137 / .78), rgb(27 62 132 / .72)); transform: none; }
+  .map-sheet { right: .65rem; bottom: max(.65rem, env(safe-area-inset-bottom)); left: .65rem; width: auto; max-height: 21rem; padding: .25rem .8rem .85rem; border: 1px solid rgb(255 255 255 / .22); border-radius: 2.1rem; background: linear-gradient(145deg, rgb(20 190 179 / .3), rgb(28 68 168 / .28)), rgb(7 18 28 / .24); transform: none; -webkit-backdrop-filter: blur(34px) saturate(210%) brightness(.78) contrast(1.1); backdrop-filter: blur(34px) saturate(210%) brightness(.78) contrast(1.1); }
   .site-shell--fullscreen .map-sheet.is-expanded { height: min(78svh, 46rem); max-height: min(78svh, 46rem); }
   .sheet-search-row { position: relative; display: block; }
-  .sheet-search-row .round-action { position: absolute; top: -5.1rem; right: 0; width: 4.15rem; height: 4.15rem; border-color: rgb(255 255 255 / .2); color: white; background: linear-gradient(145deg, rgb(18 137 137 / .82), rgb(27 62 132 / .78)); box-shadow: inset 0 1px 0 rgb(255 255 255 / .22), 0 .8rem 2rem rgb(0 0 0 / .4); backdrop-filter: blur(22px); }
+  .sheet-search-row .round-action { position: absolute; top: -5.1rem; right: 0; width: 4.15rem; height: 4.15rem; border-color: rgb(255 255 255 / .24); color: white; background: linear-gradient(145deg, rgb(20 190 179 / .28), rgb(28 68 168 / .26)), rgb(7 18 28 / .2); box-shadow: inset 0 1px 0 rgb(255 255 255 / .22), 0 .8rem 2rem rgb(0 0 0 / .4); -webkit-backdrop-filter: blur(24px) saturate(200%) brightness(.82); backdrop-filter: blur(24px) saturate(200%) brightness(.82); }
   .map-sheet .search-box { border-color: rgb(255 255 255 / .22); border-radius: 999px; background: rgb(32 149 151 / .36); box-shadow: inset 0 1px 0 rgb(255 255 255 / .16), 0 .4rem 1.5rem rgb(0 0 0 / .12); }
   .sheet-summary { padding-top: 1rem; }
   .sheet-summary strong { font-size: 1.2rem; }
