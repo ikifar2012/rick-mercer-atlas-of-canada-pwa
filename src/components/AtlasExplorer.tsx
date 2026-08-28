@@ -107,7 +107,6 @@ export default function AtlasExplorer() {
   }, [filtered, mapReady]);
 
   const update = (key: keyof typeof filters, value: string) => setFilters(current => ({ ...current, [key]: value }));
-  const nearMe = () => navigator.geolocation?.getCurrentPosition(({ coords }) => map.current?.flyTo({ center: [coords.longitude, coords.latitude], zoom: 8 }), () => undefined, { timeout: 8000 });
   const hasActiveFilters = Object.values(filters).some(Boolean);
 
   const visibleResults = selected.length > 0 ? selected : filtered;
@@ -122,7 +121,6 @@ export default function AtlasExplorer() {
       <button className="sheet-handle" type="button" onClick={() => setSheetExpanded(value => !value)} aria-label={sheetExpanded ? 'Collapse search sheet' : 'Expand search sheet'}><span /></button>
       <div className="sheet-search-row">
         <label className="search-box"><span className="search-icon" aria-hidden="true">⌕</span><span className="sr-only">Search the archive</span><input value={filters.q} onFocus={() => setSheetExpanded(true)} onChange={e => { update('q', e.target.value); setSheetExpanded(true); }} placeholder="Search the Atlas" autoComplete="off" /></label>
-        <button className="round-action" onClick={nearMe} type="button" aria-label="Show my location">⌖</button>
       </div>
       <div className="sheet-summary"><div><strong>{selected.length ? `${selected.length} at this location` : `${filtered.length} adventures`}</strong><span>{selected.length ? selected[0]?.locationLabel : hasActiveFilters ? 'Matching your search' : 'Across Canada'}</span></div>{(hasActiveFilters || selected.length > 0) && <button type="button" onClick={() => selected.length ? setSelected([]) : setFilters({ q: '', season: '', province: '', year: '' })}>{selected.length ? 'Back' : 'Clear'}</button>}</div>
       <div className="filter-row">
