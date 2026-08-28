@@ -4,12 +4,10 @@ import AtlasExplorer from '../components/AtlasExplorer';
 import data from '../../data/pois.json';
 const count = data.pois.length;
 ---
-<BaseLayout>
+<BaseLayout fullscreen>
   <section class="hero-map">
     <div class="hero-map__intro">
-      <p class="eyebrow">One country. Fifteen seasons. No sensible itinerary.</p>
-      <h1>Find Rick<br /><em>somewhere</em> in Canada.</h1>
-      <p>Explore {count} unforgettable detours, dives, climbs, festivals and conversations from coast to coast to coast.</p>
+      <p><strong>{count} stories</strong> · 15 seasons · coast to coast to coast</p>
     </div>
     <AtlasExplorer client:load />
   </section>

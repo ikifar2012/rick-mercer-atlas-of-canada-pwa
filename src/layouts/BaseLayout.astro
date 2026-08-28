@@ -7,12 +7,14 @@ interface Props {
   title?: string;
   description?: string;
   image?: string;
+  fullscreen?: boolean;
 }
 
 const {
   title = 'The Unofficial Rick Mercer Atlas of Canada',
   description = 'Explore hundreds of Rick Mercer adventures across Canada by place, season, and year.',
   image = '/og-default.svg',
+  fullscreen = false,
 } = Astro.props;
 const canonical = new URL(Astro.url.pathname, Astro.site ?? Astro.url);
 ---
@@ -38,7 +40,7 @@ const canonical = new URL(Astro.url.pathname, Astro.site ?? Astro.url);
   </head>
   <body>
     <a class="skip-link" href="#main">Skip to content</a>
-    <div class="site-shell">
+    <div class={`site-shell ${fullscreen ? 'site-shell--fullscreen' : ''}`}>
       <header class="masthead">
         <BrandMark />
         <nav class="masthead__actions" aria-label="Main navigation">

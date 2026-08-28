@@ -19,6 +19,7 @@ export default function AtlasExplorer() {
   const [selected, setSelected] = useState<Poi[]>([]);
   const [mapReady, setMapReady] = useState(false);
   const [mapError, setMapError] = useState(false);
+  const [sheetExpanded, setSheetExpanded] = useState(false);
   const mapElement = useRef<HTMLDivElement>(null);
   const map = useRef<MapLibreMap | null>(null);
 
@@ -68,6 +69,7 @@ export default function AtlasExplorer() {
         if (!point || point.type !== 'Point') return;
         const [lng, lat] = point.coordinates;
         setSelected(filtered.filter(p => Number(p.coordinates.longitude) === lng && Number(p.coordinates.latitude) === lat));
+        setSheetExpanded(true);
       });
     }
   }, [filtered, mapReady]);
@@ -84,26 +86,27 @@ export default function AtlasExplorer() {
   const nearMe = () => navigator.geolocation?.getCurrentPosition(({ coords }) => map.current?.flyTo({ center: [coords.longitude, coords.latitude], zoom: 8 }), () => undefined, { timeout: 8000 });
   const hasActiveFilters = Object.values(filters).some(Boolean);
 
+  const visibleResults = selected.length > 0 ? selected : filtered;
+
   return <section className="explorer" aria-label="Atlas explorer">
-    <div className="explorer__toolbar">
-      <div className="search-wrap"><label className="search-box"><span className="sr-only">Search the archive</span><input value={filters.q} onChange={e => update('q', e.target.value)} placeholder="Search a location, title or adventure…" autoComplete="off" /></label></div>
-      <div className="filter-row">
-        <select aria-label="Season" value={filters.season} onChange={e => update('season', e.target.value)}><option value="">All seasons</option>{seasons.map(x => <option key={x} value={x}>Season {x}</option>)}</select>
-        <select aria-label="Province or territory" value={filters.province} onChange={e => update('province', e.target.value)}><option value="">All Canada</option>{provinces.map(x => <option key={x!} value={x!}>{x}</option>)}</select>
-        <select aria-label="Broadcast year" value={filters.year} onChange={e => update('year', e.target.value)}><option value="">Any year</option>{years.map(x => <option key={x!} value={x!}>{x}</option>)}</select>
-        <button className="button button--ghost" onClick={nearMe} type="button">Near me</button>
-        <button className="button button--ghost" onClick={() => setFilters({ q: '', season: '', province: '', year: '' })} type="button">Reset</button>
-      </div>
-      <p className="results-count" aria-live="polite"><strong>{filtered.length}</strong> {filtered.length === 1 ? 'adventure' : 'adventures'} found</p>
-    </div>
     <div className="map-stage">
       <div ref={mapElement} className="map-canvas" aria-label="Interactive map of Atlas locations" />
-      {mapError && <div className="map-fallback"><strong>The map is taking the scenic route.</strong><span>The complete archive is still available below.</span></div>}
+      {mapError && <div className="map-fallback"><strong>The map is taking the scenic route.</strong><span>Search and every archive entry remain available in the sheet.</span></div>}
       <div className="map-attribution"><a href="https://openfreemap.org/">OpenFreeMap</a> · © <a href="https://www.openmaptiles.org/">OpenMapTiles</a> · Data © OpenStreetMap contributors</div>
     </div>
-    <aside className={`results-sheet ${selected.length ? 'is-open' : ''}`} aria-label="Selected location" aria-live="polite">
-      {selected.length > 0 && <><button className="sheet-close" onClick={() => setSelected([])} aria-label="Close selected location">×</button><p className="eyebrow">At this location · {selected.length} {selected.length === 1 ? 'story' : 'stories'}</p>{selected.map(p => <a className="result-card" href={`/places/${p.slug}`} key={p.id}><img className="result-card__media" src={p.video.thumbnailUrl} alt="" loading="lazy" /><span className="result-card__body"><span className="result-card__meta">S{p.season} E{p.episode} · {p.broadcastYear}</span><strong>{p.title}</strong><span>{p.locationLabel}</span></span></a>)}</>}
+    <aside className={`map-sheet ${sheetExpanded ? 'is-expanded' : ''}`} style={sheetExpanded ? { height: 'min(82svh, 46rem)', maxHeight: 'min(82svh, 46rem)' } : undefined} aria-label="Search and Atlas results">
+      <button className="sheet-handle" type="button" onClick={() => setSheetExpanded(value => !value)} aria-label={sheetExpanded ? 'Collapse search sheet' : 'Expand search sheet'}><span /></button>
+      <div className="sheet-search-row">
+        <label className="search-box"><span className="search-icon" aria-hidden="true">⌕</span><span className="sr-only">Search the archive</span><input value={filters.q} onFocus={() => setSheetExpanded(true)} onChange={e => { update('q', e.target.value); setSheetExpanded(true); }} placeholder="Search the Atlas" autoComplete="off" /></label>
+        <button className="round-action" onClick={nearMe} type="button" aria-label="Show my location">⌖</button>
+      </div>
+      <div className="sheet-summary"><div><strong>{selected.length ? `${selected.length} at this location` : `${filtered.length} adventures`}</strong><span>{selected.length ? selected[0]?.locationLabel : hasActiveFilters ? 'Matching your search' : 'Across Canada'}</span></div>{(hasActiveFilters || selected.length > 0) && <button type="button" onClick={() => selected.length ? setSelected([]) : setFilters({ q: '', season: '', province: '', year: '' })}>{selected.length ? 'Back' : 'Clear'}</button>}</div>
+      <div className="filter-row">
+        <select aria-label="Season" value={filters.season} onChange={e => { update('season', e.target.value); setSheetExpanded(true); }}><option value="">Season</option>{seasons.map(x => <option key={x} value={x}>Season {x}</option>)}</select>
+        <select aria-label="Province or territory" value={filters.province} onChange={e => { update('province', e.target.value); setSheetExpanded(true); }}><option value="">Province</option>{provinces.map(x => <option key={x!} value={x!}>{x}</option>)}</select>
+        <select aria-label="Broadcast year" value={filters.year} onChange={e => { update('year', e.target.value); setSheetExpanded(true); }}><option value="">Year</option>{years.map(x => <option key={x!} value={x!}>{x}</option>)}</select>
+      </div>
+      <div className="sheet-results" aria-live="polite">{visibleResults.length === 0 ? <div className="empty-result"><strong>No stops match that search.</strong><span>Try another city, title, or filter.</span></div> : visibleResults.slice(0, sheetExpanded ? 30 : 3).map(p => <a className="result-card" href={`/places/${p.slug}`} key={p.id}><img className="result-card__media" src={p.video.thumbnailUrl} alt="" loading="lazy" /><span className="result-card__body"><span className="result-card__meta">S{p.season} E{p.episode} · {p.broadcastYear}</span><strong>{p.title}</strong><span>{p.locationLabel}</span></span></a>)}</div>
     </aside>
-    {hasActiveFilters && selected.length === 0 && <div className="mobile-results" aria-label="Filtered results">{filtered.length === 0 ? <div className="empty-result"><strong>No stops match that search.</strong><span>Try a city, province, title, or clear a filter.</span></div> : filtered.slice(0, 8).map(p => <a className="result-card" href={`/places/${p.slug}`} key={p.id}><img className="result-card__media" src={p.video.thumbnailUrl} alt="" loading="lazy" /><span className="result-card__body"><span className="result-card__meta">S{p.season} E{p.episode}</span><strong>{p.title}</strong><span>{p.locationLabel}</span></span></a>)}</div>}
   </section>;
 }
