@@ -1,0 +1,32 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import YouTubePlayer from '../../components/YouTubePlayer';
+import data from '../../../data/pois.json';
+
+export function getStaticPaths() {
+  return data.pois.map((poi) => ({ params: { slug: poi.slug }, props: { poi } }));
+}
+const { poi } = Astro.props;
+const related = data.pois.filter((p) => p.id !== poi.id && (p.province === poi.province || p.season === poi.season)).slice(0, 3);
+const description = poi.description || `${poi.title}, filmed in ${poi.locationLabel}.`;
+---
+<BaseLayout title={`${poi.title} · Unofficial Rick Mercer Atlas`} description={description}>
+  <article class="detail-page">
+    <header class="detail-hero">
+      <div>
+        <a class="back-link" href="/">← Back to the map</a>
+        <p class="eyebrow">Season {poi.season} · Episode {poi.episode} · {poi.broadcastDate || poi.broadcastYear}</p>
+        <h1>{poi.title}</h1>
+        <p class="detail-location">⌖ {poi.locationLabel}</p>
+        <p class="detail-dek">{description}</p>
+      </div>
+      <div class="video-shell"><YouTubePlayer client:visible videoId={poi.video.youtubeId} title={poi.title} thumbnailUrl={poi.video.thumbnailUrl} /></div>
+    </header>
+    <section class="detail-map-note">
+      <p class="eyebrow">Coordinates</p>
+      <p>{Number(poi.coordinates.latitude).toFixed(4)}° N · {Math.abs(Number(poi.coordinates.longitude)).toFixed(4)}° W</p>
+      <a href={`/?q=${encodeURIComponent(poi.locationLabel)}`}>See this area on the Atlas →</a>
+    </section>
+    {related.length > 0 && <section class="related"><p class="eyebrow">Keep exploring</p><h2>More from the archive</h2><div class="poi-grid poi-grid--compact">{related.map((item) => <a class="poi-card" href={`/places/${item.slug}`}><div class="poi-card__image"><img src={item.video.thumbnailUrl} alt="" loading="lazy" /></div><div class="poi-card__body"><p class="eyebrow">{item.locationLabel}</p><h3>{item.title}</h3></div></a>)}</div></section>}
+  </article>
+</BaseLayout>

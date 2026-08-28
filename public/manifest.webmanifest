@@ -1,0 +1,26 @@
+{
+  "name": "The Unofficial Rick Mercer Atlas of Canada",
+  "short_name": "Unofficial Atlas",
+  "description": "An unofficial fan archive of Rick Mercer adventures across Canada.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#f7f4ee",
+  "theme_color": "#d62828",
+  "categories": [
+    "education",
+    "travel",
+    "reference"
+  ],
+  "lang": "en-CA",
+  "dir": "ltr",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

@@ -1,0 +1,22 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import data from '../../../data/pois.json';
+const pois = [...data.pois].sort((a, b) => (b.broadcastDate || '').localeCompare(a.broadcastDate || ''));
+---
+<BaseLayout title="All places · The Unofficial Rick Mercer Atlas">
+  <section class="page-shell">
+    <header class="page-heading">
+      <p class="eyebrow">The complete archive</p>
+      <h1>{pois.length} adventures.<br />One very large country.</h1>
+      <p>Browse every stop in the archive, from Season 1 through Season 15.</p>
+    </header>
+    <div class="poi-grid">
+      {pois.map((poi) => (
+        <a class="poi-card" href={`/places/${poi.slug}`}>
+          <div class="poi-card__image"><img src={poi.video.thumbnailUrl} alt="" loading="lazy" /><span>S{poi.season} · E{poi.episode}</span></div>
+          <div class="poi-card__body"><p class="eyebrow">{poi.locationLabel} · {poi.broadcastYear}</p><h2>{poi.title}</h2><p>{poi.description}</p></div>
+        </a>
+      ))}
+    </div>
+  </section>
+</BaseLayout>
