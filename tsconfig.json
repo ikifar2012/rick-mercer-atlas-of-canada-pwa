@@ -6,23 +6,25 @@
     "moduleResolution": "Bundler",
     "strict": true,
     "noEmit": true,
-    "baseUrl": ".",
     "paths": {
       "@/*": [
-        "src/*"
+        "./src/*"
       ]
     },
     "types": [
       "astro/client",
-      "node"
+      "node",
+      "bun"
     ]
   },
   "include": [
     ".astro/types.d.ts",
     "src/**/*",
+    "scripts/**/*",
     "astro.config.*"
   ],
   "exclude": [
-    "dist"
+    "dist",
+    "src/sw.ts"
   ]
 }

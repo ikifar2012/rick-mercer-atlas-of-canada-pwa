@@ -40,19 +40,23 @@ export default function AtlasExplorer() {
   useEffect(() => {
     if (!mapElement.current || map.current) return;
     let cancelled = false;
-    import('maplibre-gl').then((maplibregl) => {
+    // v6 no longer resolves its worker through import.meta.url under a bundler, so point it at
+    // the worker chunk Vite emits or no vector tiles ever load.
+    Promise.all([import('maplibre-gl'), import('maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url')]).then(([maplibregl, worker]) => {
       if (cancelled || !mapElement.current) return;
-      const instance = new maplibregl.Map({ container: mapElement.current, style: 'https://tiles.openfreemap.org/styles/dark', center: [-96, 58], zoom: 3, minZoom: 2 });
+      maplibregl.setWorkerUrl(worker.default);
+      const instance = new maplibregl.Map({ container: mapElement.current, style: 'https://tiles.openfreemap.org/styles/dark', center: [-96, 58], zoom: 3, minZoom: 2, attributionControl: false });
       map.current = instance;
-      const loadTimeout = window.setTimeout(() => {
-        if (!instance.loaded()) setMapError(true);
-      }, 12000);
+      const styleTimeout = window.setTimeout(() => {
+        if (!instance.isStyleLoaded()) setMapError(true);
+      }, 15000);
       instance.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right');
-      instance.on('load', () => {
-        window.clearTimeout(loadTimeout);
+      instance.on('style.load', () => {
+        window.clearTimeout(styleTimeout);
         setMapError(false);
         setMapReady(true);
       });
+      instance.on('error', () => { if (!instance.isStyleLoaded()) setMapError(true); });
     }).catch(() => setMapError(true));
     return () => { cancelled = true; map.current?.remove(); map.current = null; };
   }, []);

@@ -16,3 +16,6 @@ dist/
 # OS/editor noise
 .DS_Store
 .vscode/
+
+# Generated from src/sw.ts by `bun run build:sw`
+public/sw.js

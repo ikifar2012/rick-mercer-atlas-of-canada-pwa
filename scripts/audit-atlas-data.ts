@@ -12,7 +12,7 @@ type Dataset = { schemaVersion: number; source: { url: string; sha256: string; r
 
 const dataset = JSON.parse(await Bun.file(new URL('../data/pois.json', import.meta.url)).text()) as Dataset;
 const raw = await Bun.file(new URL('../data/source/rmr.atlas.data.js', import.meta.url)).text();
-const fail = (message: string): never => { throw new Error(message); };
+const fail: (message: string) => never = (message) => { throw new Error(message); };
 const isNumber = (value: unknown): value is number => typeof value === 'number' && Number.isFinite(value);
 const sourceAssignment = /^\s*var\s+RMRatlasdata\s*=\s*(\{[\s\S]*\})\s*;?\s*$/.exec(raw);
 if (!sourceAssignment) fail('Archived source is not the expected RMRatlasdata assignment.');
@@ -39,7 +39,7 @@ for (const poi of dataset.pois) {
   if (typeof poi.description !== 'string' && poi.description !== null) fail(`Invalid description: ${poi.id}`);
   if (!poi.locationLabel || !poi.video?.youtubeId || !poi.video.thumbnailUrl.startsWith('https://')) fail(`Video must have an ID and HTTPS thumbnail: ${poi.id}`);
   if (poi.video.durationSeconds !== null && (!Number.isInteger(poi.video.durationSeconds) || poi.video.durationSeconds < 0)) fail(`Invalid video duration: ${poi.id}`);
-  if (poi.province === null ? poi.provinceCode !== null : !/^[A-Z]{2}$/.test(poi.provinceCode)) fail(`Invalid province fields: ${poi.id}`);
+  if (poi.province === null ? poi.provinceCode !== null : poi.provinceCode === null || !/^[A-Z]{2}$/.test(poi.provinceCode)) fail(`Invalid province fields: ${poi.id}`);
   if (poi.source?.legacyGuid !== poi.id || typeof poi.source.legacyBroadcast !== 'string') fail(`Missing preserved source metadata: ${poi.id}`);
 }
 console.log(`Atlas data audit passed: ${dataset.pois.length} unique POIs, checksum ${checksum}.`);

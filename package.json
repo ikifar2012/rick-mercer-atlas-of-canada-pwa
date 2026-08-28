@@ -8,16 +8,17 @@
     "bun": ">=1.3.14"
   },
   "scripts": {
-    "dev": "astro dev",
-    "start": "astro dev",
-    "build": "bun run data:audit && astro check && astro build",
-    "check": "astro check",
+    "dev": "bun run build:sw && astro dev",
+    "start": "bun run build:sw && astro dev",
+    "build": "bun run data:audit && bun run build:sw && bun run check && astro build",
+    "check": "astro check && tsc -p tsconfig.sw.json --noEmit",
     "data:audit": "bun scripts/audit-atlas-data.ts",
-    "data:migrate": "node scripts/migrate-atlas-data.mjs",
-    "preview": "astro preview",
+    "data:migrate": "bun scripts/migrate-atlas-data.ts",
+    "preview": "bun run build:sw && astro preview",
     "preview:worker": "bun run build && wrangler dev",
     "deploy": "bun run build && wrangler deploy",
-    "astro": "astro"
+    "astro": "astro",
+    "build:sw": "bun build src/sw.ts --outfile public/sw.js --target browser --format iife"
   },
   "dependencies": {
     "@astrojs/react": "^6.0.4",
@@ -28,6 +29,7 @@
   },
   "devDependencies": {
     "@astrojs/check": "^0.9.10",
+    "@types/bun": "^1.4.0",
     "@types/node": "^26.4.0",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.5",
