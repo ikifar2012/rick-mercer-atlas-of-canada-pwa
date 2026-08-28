@@ -55,20 +55,44 @@ export default function AtlasExplorer() {
     const instance = map.current;
     if (!instance || !mapReady) return;
     const source = instance.getSource('atlas') as import('maplibre-gl').GeoJSONSource | undefined;
-    const features = filtered.map(p => ({ type: 'Feature' as const, geometry: { type: 'Point' as const, coordinates: [Number(p.coordinates.longitude), Number(p.coordinates.latitude)] }, properties: { id: p.id } }));
+    const matchingIds = new Set(filtered.map(p => p.id));
+    const features = allPois.map(p => ({ type: 'Feature' as const, geometry: { type: 'Point' as const, coordinates: [Number(p.coordinates.longitude), Number(p.coordinates.latitude)] }, properties: { id: p.id, matched: matchingIds.has(p.id) } }));
     const geojson = { type: 'FeatureCollection' as const, features };
     if (source) source.setData(geojson);
     else {
+      const pin = document.createElement('canvas');
+      pin.width = 48;
+      pin.height = 56;
+      const context = pin.getContext('2d');
+      if (context) {
+        context.scale(2, 2);
+        context.beginPath();
+        context.moveTo(12, 27);
+        context.bezierCurveTo(10.5, 23.5, 3, 16.8, 3, 10.8);
+        context.arc(12, 10.8, 9, Math.PI, 0);
+        context.bezierCurveTo(21, 16.8, 13.5, 23.5, 12, 27);
+        context.closePath();
+        context.fillStyle = '#ff453a';
+        context.fill();
+        context.lineWidth = 1.25;
+        context.strokeStyle = '#ffd7d4';
+        context.stroke();
+        context.beginPath();
+        context.arc(12, 10.8, 3.2, 0, Math.PI * 2);
+        context.fillStyle = '#fff';
+        context.fill();
+      }
+      instance.addImage('atlas-pin', context!.getImageData(0, 0, pin.width, pin.height), { pixelRatio: 2 });
       instance.addSource('atlas', { type: 'geojson', data: geojson });
-      instance.addLayer({ id: 'atlas-halo', type: 'circle', source: 'atlas', paint: { 'circle-radius': 11, 'circle-color': '#ff5360', 'circle-opacity': .22, 'circle-blur': .35 } });
-      instance.addLayer({ id: 'atlas-points', type: 'circle', source: 'atlas', paint: { 'circle-radius': 5.5, 'circle-color': '#ff453a', 'circle-stroke-width': 1.5, 'circle-stroke-color': '#ffd7d4' } });
-      instance.on('mouseenter', 'atlas-points', () => instance.getCanvas().style.cursor = 'pointer');
-      instance.on('mouseleave', 'atlas-points', () => instance.getCanvas().style.cursor = '');
-      instance.on('click', 'atlas-points', e => {
+      instance.addLayer({ id: 'atlas-halo', type: 'circle', source: 'atlas', paint: { 'circle-radius': 12, 'circle-color': '#ff5360', 'circle-opacity': ['case', ['get', 'matched'], .2, .035], 'circle-blur': .55 } });
+      instance.addLayer({ id: 'atlas-pins', type: 'symbol', source: 'atlas', layout: { 'icon-image': 'atlas-pin', 'icon-anchor': 'bottom', 'icon-allow-overlap': true, 'icon-ignore-placement': true, 'icon-size': ['interpolate', ['linear'], ['zoom'], 2, .72, 7, .9] }, paint: { 'icon-opacity': ['case', ['get', 'matched'], .96, .2] } });
+      instance.on('mouseenter', 'atlas-pins', () => instance.getCanvas().style.cursor = 'pointer');
+      instance.on('mouseleave', 'atlas-pins', () => instance.getCanvas().style.cursor = '');
+      instance.on('click', 'atlas-pins', e => {
         const point = e.features?.[0]?.geometry;
         if (!point || point.type !== 'Point') return;
         const [lng, lat] = point.coordinates;
-        setSelected(filtered.filter(p => Number(p.coordinates.longitude) === lng && Number(p.coordinates.latitude) === lat));
+        setSelected(allPois.filter(p => Number(p.coordinates.longitude) === lng && Number(p.coordinates.latitude) === lat));
         setSheetExpanded(true);
       });
     }
