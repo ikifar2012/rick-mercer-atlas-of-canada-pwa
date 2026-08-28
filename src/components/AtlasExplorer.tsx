@@ -42,7 +42,7 @@ export default function AtlasExplorer() {
     let cancelled = false;
     import('maplibre-gl').then((maplibregl) => {
       if (cancelled || !mapElement.current) return;
-      const instance = new maplibregl.Map({ container: mapElement.current, style: 'https://tiles.openfreemap.org/styles/liberty', center: [-96, 58], zoom: 3, minZoom: 2 });
+      const instance = new maplibregl.Map({ container: mapElement.current, style: 'https://tiles.openfreemap.org/styles/dark', center: [-96, 58], zoom: 3, minZoom: 2 });
       map.current = instance;
       instance.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right');
       instance.on('load', () => { setMapReady(true); });
@@ -60,8 +60,8 @@ export default function AtlasExplorer() {
     if (source) source.setData(geojson);
     else {
       instance.addSource('atlas', { type: 'geojson', data: geojson });
-      instance.addLayer({ id: 'atlas-halo', type: 'circle', source: 'atlas', paint: { 'circle-radius': 10, 'circle-color': '#fff7e8', 'circle-opacity': .9 } });
-      instance.addLayer({ id: 'atlas-points', type: 'circle', source: 'atlas', paint: { 'circle-radius': 6, 'circle-color': '#d62828', 'circle-stroke-width': 1.5, 'circle-stroke-color': '#171512' } });
+      instance.addLayer({ id: 'atlas-halo', type: 'circle', source: 'atlas', paint: { 'circle-radius': 11, 'circle-color': '#ff5360', 'circle-opacity': .22, 'circle-blur': .35 } });
+      instance.addLayer({ id: 'atlas-points', type: 'circle', source: 'atlas', paint: { 'circle-radius': 5.5, 'circle-color': '#ff453a', 'circle-stroke-width': 1.5, 'circle-stroke-color': '#ffd7d4' } });
       instance.on('mouseenter', 'atlas-points', () => instance.getCanvas().style.cursor = 'pointer');
       instance.on('mouseleave', 'atlas-points', () => instance.getCanvas().style.cursor = '');
       instance.on('click', 'atlas-points', e => {
@@ -94,7 +94,7 @@ export default function AtlasExplorer() {
       {mapError && <div className="map-fallback"><strong>The map is taking the scenic route.</strong><span>Search and every archive entry remain available in the sheet.</span></div>}
       <div className="map-attribution"><a href="https://openfreemap.org/">OpenFreeMap</a> · © <a href="https://www.openmaptiles.org/">OpenMapTiles</a> · Data © OpenStreetMap contributors</div>
     </div>
-    <aside className={`map-sheet ${sheetExpanded ? 'is-expanded' : ''}`} style={sheetExpanded ? { height: 'min(82svh, 46rem)', maxHeight: 'min(82svh, 46rem)' } : undefined} aria-label="Search and Atlas results">
+    <aside className={`map-sheet ${sheetExpanded ? 'is-expanded' : ''}`} style={sheetExpanded ? { height: 'min(78svh, 46rem)', maxHeight: 'min(78svh, 46rem)' } : undefined} aria-label="Search and Atlas results">
       <button className="sheet-handle" type="button" onClick={() => setSheetExpanded(value => !value)} aria-label={sheetExpanded ? 'Collapse search sheet' : 'Expand search sheet'}><span /></button>
       <div className="sheet-search-row">
         <label className="search-box"><span className="search-icon" aria-hidden="true">⌕</span><span className="sr-only">Search the archive</span><input value={filters.q} onFocus={() => setSheetExpanded(true)} onChange={e => { update('q', e.target.value); setSheetExpanded(true); }} placeholder="Search the Atlas" autoComplete="off" /></label>
