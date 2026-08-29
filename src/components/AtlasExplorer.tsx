@@ -1,7 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { Map as MapLibreMap } from 'maplibre-gl';
+import { AnimatePresence, MotionConfig, motion } from 'motion/react';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import poisData from '../../data/pois.json';
+import ScrollArea from './ScrollArea';
+import YouTubePlayer from './YouTubePlayer';
 
 type Poi = (typeof poisData.pois)[number];
 const allPois = poisData.pois as Poi[];
@@ -17,25 +20,42 @@ function readInitial() {
 export default function AtlasExplorer() {
   const [filters, setFilters] = useState(readInitial);
   const [selected, setSelected] = useState<Poi[]>([]);
+  const [activePoi, setActivePoi] = useState<Poi | null>(null);
   const [mapReady, setMapReady] = useState(false);
   const [mapError, setMapError] = useState(false);
   const [sheetExpanded, setSheetExpanded] = useState(false);
+  const [archiveOpen, setArchiveOpen] = useState(() => typeof window !== 'undefined' && new URLSearchParams(location.search).get('archive') === '1');
+  const [archiveQuery, setArchiveQuery] = useState('');
+  const [archiveActivePoi, setArchiveActivePoi] = useState<Poi | null>(null);
   const mapElement = useRef<HTMLDivElement>(null);
   const map = useRef<MapLibreMap | null>(null);
 
   const seasons = useMemo(() => [...new Set(allPois.map(p => p.season))].sort((a, b) => b - a), []);
   const provinces = useMemo(() => [...new Set(allPois.map(p => p.province).filter(Boolean))].sort(), []);
   const years = useMemo(() => [...new Set(allPois.map(p => p.broadcastYear).filter(Boolean))].sort((a, b) => Number(b) - Number(a)), []);
+  const archivePois = useMemo(() => [...allPois].sort((a, b) => (b.broadcastDate || '').localeCompare(a.broadcastDate || '')), []);
   const filtered = useMemo(() => {
     const query = filters.q.trim().toLocaleLowerCase();
     return allPois.filter(p => (!query || `${p.title} ${p.description || ''} ${p.locationLabel}`.toLocaleLowerCase().includes(query)) && (!filters.season || String(p.season) === filters.season) && (!filters.province || p.province === filters.province) && (!filters.year || String(p.broadcastYear) === filters.year));
   }, [filters]);
+  const archiveResults = useMemo(() => {
+    const query = archiveQuery.trim().toLocaleLowerCase();
+    return !query ? archivePois : archivePois.filter(p => `${p.title} ${p.description || ''} ${p.locationLabel}`.toLocaleLowerCase().includes(query));
+  }, [archivePois, archiveQuery]);
 
   useEffect(() => {
     const p = new URLSearchParams();
     Object.entries(filters).forEach(([key, value]) => value && p.set(key, value));
+    if (archiveOpen) p.set('archive', '1');
     history.replaceState(null, '', `${location.pathname}${p.size ? `?${p}` : ''}`);
-  }, [filters]);
+  }, [archiveOpen, filters]);
+
+  useEffect(() => {
+    if (!archiveOpen) return;
+    const closeOnEscape = (event: KeyboardEvent) => { if (event.key === 'Escape') { setArchiveActivePoi(null); setArchiveOpen(false); } };
+    window.addEventListener('keydown', closeOnEscape);
+    return () => window.removeEventListener('keydown', closeOnEscape);
+  }, [archiveOpen]);
 
   useEffect(() => {
     if (!mapElement.current || map.current) return;
@@ -94,17 +114,12 @@ export default function AtlasExplorer() {
       }
       instance.addImage('atlas-pin', context!.getImageData(0, 0, pin.width, pin.height), { pixelRatio: 2 });
       instance.addSource('atlas', { type: 'geojson', data: geojson });
-      instance.addLayer({ id: 'atlas-halo', type: 'circle', source: 'atlas', paint: { 'circle-radius': 12, 'circle-color': '#ff5360', 'circle-opacity': ['case', ['get', 'matched'], .2, .035], 'circle-blur': .55 } });
-      instance.addLayer({ id: 'atlas-pins', type: 'symbol', source: 'atlas', layout: { 'icon-image': 'atlas-pin', 'icon-anchor': 'bottom', 'icon-allow-overlap': true, 'icon-ignore-placement': true, 'icon-size': ['interpolate', ['linear'], ['zoom'], 2, .72, 7, .9] }, paint: { 'icon-opacity': ['case', ['get', 'matched'], .96, .2] } });
-      instance.on('mouseenter', 'atlas-pins', () => instance.getCanvas().style.cursor = 'pointer');
-      instance.on('mouseleave', 'atlas-pins', () => instance.getCanvas().style.cursor = '');
-      instance.on('click', 'atlas-pins', e => {
-        const point = e.features?.[0]?.geometry;
-        if (!point || point.type !== 'Point') return;
-        const [lng, lat] = point.coordinates;
-        setSelected(allPois.filter(p => Number(p.coordinates.longitude) === lng && Number(p.coordinates.latitude) === lat));
-        setSheetExpanded(true);
-      });
+      instance.addLayer({ id: 'atlas-pin-hit', type: 'circle', source: 'atlas', paint: { 'circle-radius': 18, 'circle-color': '#ff453a', 'circle-opacity': .001 } });
+      instance.addLayer({ id: 'atlas-pins', type: 'symbol', source: 'atlas', layout: { 'icon-image': 'atlas-pin', 'icon-anchor': 'bottom', 'icon-allow-overlap': true, 'icon-ignore-placement': true, 'icon-size': ['interpolate', ['linear'], ['zoom'], 2, .62, 7, .82] }, paint: { 'icon-opacity': ['case', ['get', 'matched'], .96, .2] } });
+      for (const layer of ['atlas-pin-hit', 'atlas-pins']) {
+        instance.on('mouseenter', layer, () => instance.getCanvas().style.cursor = 'pointer');
+        instance.on('mouseleave', layer, () => instance.getCanvas().style.cursor = '');
+      }
     }
   }, [filtered, mapReady]);
 
@@ -116,13 +131,47 @@ export default function AtlasExplorer() {
     instance.fitBounds([[Math.min(...longitudes), Math.min(...latitudes)], [Math.max(...longitudes), Math.max(...latitudes)]], { padding: 70, maxZoom: 10, duration: 700 });
   }, [filtered, mapReady]);
 
-  const update = (key: keyof typeof filters, value: string) => setFilters(current => ({ ...current, [key]: value }));
+  const update = (key: keyof typeof filters, value: string) => {
+    setActivePoi(null);
+    setSelected([]);
+    setFilters(current => ({ ...current, [key]: value }));
+  };
   const hasActiveFilters = Object.values(filters).some(Boolean);
 
   const visibleResults = selected.length > 0 ? selected : filtered;
+  const selectPlaceAt = (clientX: number, clientY: number) => {
+    const instance = map.current;
+    if (!instance) return;
+    const bounds = instance.getCanvas().getBoundingClientRect();
+    const feature = instance.queryRenderedFeatures([clientX - bounds.left, clientY - bounds.top], { layers: ['atlas-pins', 'atlas-pin-hit'] })[0];
+    const poi = allPois.find(p => p.id === feature?.properties?.id);
+    if (!poi) return;
+    if (window.matchMedia('(max-width: 760px)').matches) {
+      setSelected([poi]);
+      setActivePoi(poi);
+      setSheetExpanded(true);
+      return;
+    }
+    setArchiveActivePoi(poi);
+    setArchiveOpen(true);
+    setSheetExpanded(false);
+  };
+  const showArchivePoi = (poi: Poi) => {
+    setArchiveActivePoi(poi);
+  };
+  const showSearchPoi = (poi: Poi) => {
+    if (window.matchMedia('(max-width: 760px)').matches) {
+      setActivePoi(poi);
+      return;
+    }
+    setActivePoi(null);
+    setArchiveActivePoi(poi);
+    setArchiveOpen(true);
+    setSheetExpanded(false);
+  };
 
-  return <section className="explorer" aria-label="Atlas explorer">
-    <div className="map-stage">
+  return <MotionConfig reducedMotion="user"><section className="explorer" aria-label="Atlas explorer">
+    <div className="map-stage" onClickCapture={event => selectPlaceAt(event.clientX, event.clientY)} onPointerUpCapture={event => selectPlaceAt(event.clientX, event.clientY)}>
       <div ref={mapElement} className="map-canvas" aria-label="Interactive map of Atlas locations" />
       {mapError && <div className="map-fallback"><strong>The map is taking the scenic route.</strong><span>Search and every archive entry remain available in the sheet.</span></div>}
       <div className="map-attribution"><a href="https://openfreemap.org/">OpenFreeMap</a> · © <a href="https://www.openmaptiles.org/">OpenMapTiles</a> · Data © OpenStreetMap contributors</div>
@@ -132,13 +181,14 @@ export default function AtlasExplorer() {
       <div className="sheet-search-row">
         <label className="search-box"><span className="search-icon" aria-hidden="true">⌕</span><span className="sr-only">Search the archive</span><input value={filters.q} onFocus={() => setSheetExpanded(true)} onChange={e => { update('q', e.target.value); setSheetExpanded(true); }} placeholder="Search the Atlas" autoComplete="off" /></label>
       </div>
-      <div className="sheet-summary"><div><strong>{selected.length ? `${selected.length} at this location` : `${filtered.length} adventures`}</strong><span>{selected.length ? selected[0]?.locationLabel : hasActiveFilters ? 'Matching your search' : 'Across Canada'}</span></div>{(hasActiveFilters || selected.length > 0) && <button type="button" onClick={() => selected.length ? setSelected([]) : setFilters({ q: '', season: '', province: '', year: '' })}>{selected.length ? 'Back' : 'Clear'}</button>}</div>
+      <div className="sheet-summary"><div><strong>{activePoi ? activePoi.title : selected.length ? `${selected.length} at this location` : `${filtered.length} adventures`}</strong><span>{activePoi ? activePoi.locationLabel : selected.length ? selected[0]?.locationLabel : hasActiveFilters ? 'Matching your search' : 'Across Canada'}</span></div>{(hasActiveFilters || selected.length > 0 || activePoi) && <button type="button" onClick={() => activePoi ? setActivePoi(null) : selected.length ? setSelected([]) : setFilters({ q: '', season: '', province: '', year: '' })}>{activePoi || selected.length ? 'Back' : 'Clear'}</button>}</div>
       <div className="filter-row">
         <select aria-label="Season" value={filters.season} onChange={e => { update('season', e.target.value); setSheetExpanded(true); }}><option value="">Season</option>{seasons.map(x => <option key={x} value={x}>Season {x}</option>)}</select>
         <select aria-label="Province or territory" value={filters.province} onChange={e => { update('province', e.target.value); setSheetExpanded(true); }}><option value="">Province</option>{provinces.map(x => <option key={x!} value={x!}>{x}</option>)}</select>
         <select aria-label="Broadcast year" value={filters.year} onChange={e => { update('year', e.target.value); setSheetExpanded(true); }}><option value="">Year</option>{years.map(x => <option key={x!} value={x!}>{x}</option>)}</select>
       </div>
-      <div className="sheet-results" aria-live="polite">{visibleResults.length === 0 ? <div className="empty-result"><strong>No stops match that search.</strong><span>Try another city, title, or filter.</span></div> : visibleResults.slice(0, sheetExpanded ? 30 : 3).map(p => <a className="result-card" href={`/places/${p.slug}`} key={p.id}><img className="result-card__media" src={p.video.thumbnailUrl} alt="" loading="lazy" /><span className="result-card__body"><span className="result-card__meta">S{p.season} E{p.episode} · {p.broadcastYear}</span><strong>{p.title}</strong><span>{p.locationLabel}</span></span></a>)}</div>
+      <ScrollArea className="sheet-results" aria-live="polite" aria-label="Search results">{activePoi ? <article className="place-detail-card"><div className="place-detail-card__media"><YouTubePlayer videoId={activePoi.video.youtubeId} title={activePoi.title} thumbnailUrl={activePoi.video.thumbnailUrl} /></div><div className="place-detail-card__body"><p className="result-card__meta">Season {activePoi.season} · Episode {activePoi.episode}</p><h2>{activePoi.title}</h2><p className="place-detail-card__location">⌖ {activePoi.locationLabel}</p><p>{activePoi.description || `An Atlas stop in ${activePoi.locationLabel}.`}</p><dl className="place-detail-card__facts"><div><dt>Aired</dt><dd>{activePoi.broadcastDate || activePoi.broadcastYear}</dd></div><div><dt>Region</dt><dd>{activePoi.province || 'Canada'}</dd></div></dl></div></article> : visibleResults.length === 0 ? <div className="empty-result"><strong>No stops match that search.</strong><span>Try another city, title, or filter.</span></div> : visibleResults.slice(0, sheetExpanded ? 30 : 3).map(p => <button className="result-card" type="button" onClick={() => showSearchPoi(p)} key={p.id}><img className="result-card__media" src={p.video.thumbnailUrl} alt="" loading="lazy" /><span className="result-card__body"><span className="result-card__meta">S{p.season} E{p.episode} · {p.broadcastYear}</span><strong>{p.title}</strong><span>{p.locationLabel}</span></span></button>)}</ScrollArea>
     </aside>
-  </section>;
+    <AnimatePresence>{archiveOpen && <motion.div className="archive-modal" key="archive-modal" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: .18, ease: 'easeOut' }} onMouseDown={event => { if (event.target === event.currentTarget) { setArchiveActivePoi(null); setArchiveOpen(false); } }}><motion.section className={`archive-modal__panel ${archiveActivePoi ? 'is-detail' : ''}`} role="dialog" aria-modal="true" aria-labelledby="archive-modal-title" initial={{ opacity: 0, y: 12, scale: .985 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 8, scale: .99 }} transition={{ type: 'spring', stiffness: 420, damping: 34 }}>{archiveActivePoi ? <><header><div><p className="eyebrow">{archiveActivePoi.locationLabel}</p><h2 id="archive-modal-title">{archiveActivePoi.title}</h2><p>Season {archiveActivePoi.season} · Episode {archiveActivePoi.episode} · {archiveActivePoi.broadcastYear}</p></div><button className="archive-modal__close" type="button" onClick={() => { setArchiveActivePoi(null); setArchiveOpen(false); }} aria-label="Close all places"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="m4.5 4.5 7 7m0-7-7 7" /></svg></button></header><ScrollArea className="archive-modal__detail" aria-label="Adventure details"><div className="archive-modal__media"><YouTubePlayer videoId={archiveActivePoi.video.youtubeId} title={archiveActivePoi.title} thumbnailUrl={archiveActivePoi.video.thumbnailUrl} /></div><p>{archiveActivePoi.description || `An Atlas stop in ${archiveActivePoi.locationLabel}.`}</p><dl className="place-detail-card__facts"><div><dt>Aired</dt><dd>{archiveActivePoi.broadcastDate || archiveActivePoi.broadcastYear}</dd></div><div><dt>Region</dt><dd>{archiveActivePoi.province || 'Canada'}</dd></div></dl><button className="archive-modal__back" type="button" onClick={() => setArchiveActivePoi(null)}>‹ All places</button></ScrollArea></> : <><header><div><p className="eyebrow">The complete archive</p><h2 id="archive-modal-title">All places</h2><p>Choose an adventure to view its story.</p></div><button className="archive-modal__close" type="button" onClick={() => { setArchiveActivePoi(null); setArchiveOpen(false); }} aria-label="Close all places"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="m4.5 4.5 7 7m0-7-7 7" /></svg></button></header><label className="archive-modal__search"><span aria-hidden="true">⌕</span><span className="sr-only">Search all places</span><input value={archiveQuery} onChange={event => setArchiveQuery(event.target.value)} placeholder="Search all places" autoFocus /></label><p className="archive-modal__count">{archiveResults.length} adventures</p><ScrollArea className="archive-modal__results" aria-label="All adventures">{archiveResults.map(poi => <button className="archive-modal__card" type="button" onClick={() => showArchivePoi(poi)} key={poi.id}><img src={poi.video.thumbnailUrl} alt="" loading="lazy" /><span><strong>{poi.title}</strong><small>{poi.locationLabel} · S{poi.season} E{poi.episode} · {poi.broadcastYear}</small></span></button>)}</ScrollArea></>}</motion.section></motion.div>}</AnimatePresence>
+  </section></MotionConfig>;
 }

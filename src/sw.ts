@@ -3,8 +3,8 @@
 // Aliased rather than redeclared so this file stays a plain script and the bundle stays free of module boilerplate.
 const sw = self as unknown as ServiceWorkerGlobalScope;
 
-const CACHE = 'atlas-shell-v1';
-const CORE = ['/', '/places/', '/about/', '/manifest.webmanifest', '/favicon.svg', '/og-default.svg'];
+const CACHE = 'atlas-shell-v2';
+const CORE = ['/', '/manifest.webmanifest', '/favicon.svg', '/og-default.svg'];
 
 sw.addEventListener('install', (event) => {
   event.waitUntil(caches.open(CACHE).then((cache) => cache.addAll(CORE)));
@@ -29,7 +29,7 @@ sw.addEventListener('fetch', (event) => {
       const copy = response.clone();
       caches.open(CACHE).then((cache) => cache.put(request, copy));
       return response;
-    }).catch(async () => (await caches.match(request)) || (await caches.match('/places/')) || Response.error()));
+    }).catch(async () => (await caches.match(request)) || (await caches.match('/')) || Response.error()));
     return;
   }
 

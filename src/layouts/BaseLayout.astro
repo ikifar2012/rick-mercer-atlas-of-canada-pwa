@@ -44,15 +44,14 @@ const canonical = new URL(Astro.url.pathname, Astro.site ?? Astro.url);
       <header class="masthead">
         <BrandMark />
         <nav class="masthead__actions" aria-label="Main navigation">
-          <a href="/places">All places</a>
-          <a href="/about">About</a>
+          <a href="/?archive=1">All places</a>
           <span class="archive-badge">Unofficial fan archive</span>
         </nav>
       </header>
       <main id="main"><slot /></main>
       <footer class="footer">
         <p>An independent, unofficial fan archive. Not affiliated with Rick Mercer or CBC.</p>
-        <p><a href="/about">About this project</a> · <a href={import.meta.env.PUBLIC_ISSUES_URL || '#'}>Corrections & rights</a></p>
+        <p><a href={import.meta.env.PUBLIC_ISSUES_URL || '#'}>Corrections & rights</a></p>
       </footer>
       <UpdatePrompt client:load />
     </div>
