@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { Map as MapLibreMap } from 'maplibre-gl';
-import { AnimatePresence, MotionConfig, motion } from 'motion/react';
+import { AnimatePresence, MotionConfig } from 'motion/react';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import poisData from '../../data/pois.json';
+import ArchiveModal from './ArchiveModal';
 import ScrollArea from './ScrollArea';
 import YouTubePlayer from './YouTubePlayer';
 
@@ -33,15 +34,10 @@ export default function AtlasExplorer() {
   const seasons = useMemo(() => [...new Set(allPois.map(p => p.season))].sort((a, b) => b - a), []);
   const provinces = useMemo(() => [...new Set(allPois.map(p => p.province).filter(Boolean))].sort(), []);
   const years = useMemo(() => [...new Set(allPois.map(p => p.broadcastYear).filter(Boolean))].sort((a, b) => Number(b) - Number(a)), []);
-  const archivePois = useMemo(() => [...allPois].sort((a, b) => (b.broadcastDate || '').localeCompare(a.broadcastDate || '')), []);
   const filtered = useMemo(() => {
     const query = filters.q.trim().toLocaleLowerCase();
     return allPois.filter(p => (!query || `${p.title} ${p.description || ''} ${p.locationLabel}`.toLocaleLowerCase().includes(query)) && (!filters.season || String(p.season) === filters.season) && (!filters.province || p.province === filters.province) && (!filters.year || String(p.broadcastYear) === filters.year));
   }, [filters]);
-  const archiveResults = useMemo(() => {
-    const query = archiveQuery.trim().toLocaleLowerCase();
-    return !query ? archivePois : archivePois.filter(p => `${p.title} ${p.description || ''} ${p.locationLabel}`.toLocaleLowerCase().includes(query));
-  }, [archivePois, archiveQuery]);
 
   useEffect(() => {
     const p = new URLSearchParams();
@@ -156,9 +152,9 @@ export default function AtlasExplorer() {
     setArchiveOpen(true);
     setSheetExpanded(false);
   };
-  const showArchivePoi = (poi: Poi) => {
-    setArchiveActivePoi(poi);
-  };
+  const showArchivePoi = useCallback((poi: Poi) => { setArchiveActivePoi(poi); }, []);
+  const closeArchivePoi = useCallback(() => setArchiveActivePoi(null), []);
+  const closeArchive = useCallback(() => { setArchiveActivePoi(null); setArchiveOpen(false); }, []);
   const showSearchPoi = (poi: Poi) => {
     if (window.matchMedia('(max-width: 760px)').matches) {
       setActivePoi(poi);
@@ -189,6 +185,6 @@ export default function AtlasExplorer() {
       </div>
       <ScrollArea className="sheet-results" aria-live="polite" aria-label="Search results">{activePoi ? <article className="place-detail-card"><div className="place-detail-card__media"><YouTubePlayer videoId={activePoi.video.youtubeId} title={activePoi.title} thumbnailUrl={activePoi.video.thumbnailUrl} /></div><div className="place-detail-card__body"><p className="result-card__meta">Season {activePoi.season} · Episode {activePoi.episode}</p><h2>{activePoi.title}</h2><p className="place-detail-card__location">⌖ {activePoi.locationLabel}</p><p>{activePoi.description || `An Atlas stop in ${activePoi.locationLabel}.`}</p><dl className="place-detail-card__facts"><div><dt>Aired</dt><dd>{activePoi.broadcastDate || activePoi.broadcastYear}</dd></div><div><dt>Region</dt><dd>{activePoi.province || 'Canada'}</dd></div></dl></div></article> : visibleResults.length === 0 ? <div className="empty-result"><strong>No stops match that search.</strong><span>Try another city, title, or filter.</span></div> : visibleResults.slice(0, sheetExpanded ? 30 : 3).map(p => <button className="result-card" type="button" onClick={() => showSearchPoi(p)} key={p.id}><img className="result-card__media" src={p.video.thumbnailUrl} alt="" loading="lazy" /><span className="result-card__body"><span className="result-card__meta">S{p.season} E{p.episode} · {p.broadcastYear}</span><strong>{p.title}</strong><span>{p.locationLabel}</span></span></button>)}</ScrollArea>
     </aside>
-    <AnimatePresence>{archiveOpen && <motion.div className="archive-modal" key="archive-modal" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: .18, ease: 'easeOut' }} onMouseDown={event => { if (event.target === event.currentTarget) { setArchiveActivePoi(null); setArchiveOpen(false); } }}><motion.section className={`archive-modal__panel ${archiveActivePoi ? 'is-detail' : ''}`} role="dialog" aria-modal="true" aria-labelledby="archive-modal-title" initial={{ opacity: 0, y: 12, scale: .985 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 8, scale: .99 }} transition={{ type: 'spring', stiffness: 420, damping: 34 }}>{archiveActivePoi ? <><header><div><p className="eyebrow">{archiveActivePoi.locationLabel}</p><h2 id="archive-modal-title">{archiveActivePoi.title}</h2><p>Season {archiveActivePoi.season} · Episode {archiveActivePoi.episode} · {archiveActivePoi.broadcastYear}</p></div><button className="archive-modal__close" type="button" onClick={() => { setArchiveActivePoi(null); setArchiveOpen(false); }} aria-label="Close all places"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="m4.5 4.5 7 7m0-7-7 7" /></svg></button></header><ScrollArea className="archive-modal__detail" aria-label="Adventure details"><div className="archive-modal__media"><YouTubePlayer videoId={archiveActivePoi.video.youtubeId} title={archiveActivePoi.title} thumbnailUrl={archiveActivePoi.video.thumbnailUrl} /></div><p>{archiveActivePoi.description || `An Atlas stop in ${archiveActivePoi.locationLabel}.`}</p><dl className="place-detail-card__facts"><div><dt>Aired</dt><dd>{archiveActivePoi.broadcastDate || archiveActivePoi.broadcastYear}</dd></div><div><dt>Region</dt><dd>{archiveActivePoi.province || 'Canada'}</dd></div></dl><button className="archive-modal__back" type="button" onClick={() => setArchiveActivePoi(null)}>‹ All places</button></ScrollArea></> : <><header><div><p className="eyebrow">The complete archive</p><h2 id="archive-modal-title">All places</h2><p>Choose an adventure to view its story.</p></div><button className="archive-modal__close" type="button" onClick={() => { setArchiveActivePoi(null); setArchiveOpen(false); }} aria-label="Close all places"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="m4.5 4.5 7 7m0-7-7 7" /></svg></button></header><label className="archive-modal__search"><span aria-hidden="true">⌕</span><span className="sr-only">Search all places</span><input value={archiveQuery} onChange={event => setArchiveQuery(event.target.value)} placeholder="Search all places" autoFocus /></label><p className="archive-modal__count">{archiveResults.length} adventures</p><ScrollArea className="archive-modal__results" aria-label="All adventures">{archiveResults.map(poi => <button className="archive-modal__card" type="button" onClick={() => showArchivePoi(poi)} key={poi.id}><img src={poi.video.thumbnailUrl} alt="" loading="lazy" /><span><strong>{poi.title}</strong><small>{poi.locationLabel} · S{poi.season} E{poi.episode} · {poi.broadcastYear}</small></span></button>)}</ScrollArea></>}</motion.section></motion.div>}</AnimatePresence>
+    <AnimatePresence>{archiveOpen && <ArchiveModal key="archive-modal" query={archiveQuery} onQueryChange={setArchiveQuery} activePoi={archiveActivePoi} onSelect={showArchivePoi} onBack={closeArchivePoi} onClose={closeArchive} />}</AnimatePresence>
   </section></MotionConfig>;
 }
