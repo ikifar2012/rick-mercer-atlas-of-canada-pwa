@@ -7,11 +7,11 @@ interface Props {
 const { compact = false, class: className = '' } = Astro.props;
 ---
 
-<a class={`brand-mark ${className}`} href="/" aria-label="Atlas of Canada home">
+<a class={`brand-mark ${className}`} href="/" aria-label="The Unofficial Rick Mercer Atlas of Canada — home">
   <svg class="brand-mark__icon" viewBox="0 0 48 48" aria-hidden="true">
     <path d="M24 2 29 14l13-3-6 11 9 8-13 1 1 13-9-8-9 8 1-13-13-1 9-8-6-11 13 3L24 2Z" fill="var(--red-600)" />
     <path d="m24 11 2.5 8.2 8.6-.8-6.3 5.8 4.5 6.6-8.1-2.6-1.2 8.6-1.2-8.6-8.1 2.6 4.5-6.6-6.3-5.8 8.6.8L24 11Z" fill="var(--cream)" />
     <circle cx="24" cy="24" r="3.1" fill="var(--ink)" />
   </svg>
-  {!compact && <span class="brand-mark__name">Atlas of Canada<small class="brand-mark__eyebrow">an unofficial archive</small></span>}
+  {!compact && <span class="brand-mark__name">Rick Mercer Atlas of Canada<small class="brand-mark__eyebrow">An unofficial fan archive</small></span>}
 </a>

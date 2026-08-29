@@ -1,0 +1,9 @@
+# The Unofficial Rick Mercer Atlas of Canada — a fan-made preservation archive.
+# Original source: https://www.rickmercer.com/atlasofcanada/
+
+User-agent: *
+Allow: /
+Disallow: /404
+Disallow: /404.html
+
+Sitemap: https://rmratlas.mstep.link/sitemap-index.xml
