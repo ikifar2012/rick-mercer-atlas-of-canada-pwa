@@ -18,11 +18,37 @@ function readInitial() {
   return { q: p.get('q') || oldHash, season: p.get('season') || '', province: p.get('province') || '', year: p.get('year') || '' };
 }
 
+/** The pin icon, redrawn on demand: a style reload throws away every image the map held. */
+function drawPinImage() {
+  const pin = document.createElement('canvas');
+  pin.width = 48;
+  pin.height = 56;
+  const context = pin.getContext('2d');
+  if (!context) return null;
+  context.scale(2, 2);
+  context.beginPath();
+  context.moveTo(12, 27);
+  context.bezierCurveTo(10.5, 23.5, 3, 16.8, 3, 10.8);
+  context.arc(12, 10.8, 9, Math.PI, 0);
+  context.bezierCurveTo(21, 16.8, 13.5, 23.5, 12, 27);
+  context.closePath();
+  context.fillStyle = '#ff453a';
+  context.fill();
+  context.lineWidth = 1.25;
+  context.strokeStyle = '#ffd7d4';
+  context.stroke();
+  context.beginPath();
+  context.arc(12, 10.8, 3.2, 0, Math.PI * 2);
+  context.fillStyle = '#fff';
+  context.fill();
+  return context.getImageData(0, 0, pin.width, pin.height);
+}
+
 export default function AtlasExplorer() {
   const [filters, setFilters] = useState(readInitial);
   const [selected, setSelected] = useState<Poi[]>([]);
   const [activePoi, setActivePoi] = useState<Poi | null>(null);
-  const [mapReady, setMapReady] = useState(false);
+  const [styleEpoch, setStyleEpoch] = useState(0);
   const [mapError, setMapError] = useState(false);
   const [sheetExpanded, setSheetExpanded] = useState(false);
   const [archiveOpen, setArchiveOpen] = useState(() => typeof window !== 'undefined' && new URLSearchParams(location.search).get('archive') === '1');
@@ -30,7 +56,9 @@ export default function AtlasExplorer() {
   const [archiveActivePoi, setArchiveActivePoi] = useState<Poi | null>(null);
   const mapElement = useRef<HTMLDivElement>(null);
   const map = useRef<MapLibreMap | null>(null);
+  const cursorHandlersBound = useRef(false);
 
+  const mapReady = styleEpoch > 0;
   const seasons = useMemo(() => [...new Set(allPois.map(p => p.season))].sort((a, b) => b - a), []);
   const provinces = useMemo(() => [...new Set(allPois.map(p => p.province).filter(Boolean))].sort(), []);
   const years = useMemo(() => [...new Set(allPois.map(p => p.broadcastYear).filter(Boolean))].sort((a, b) => Number(b) - Number(a)), []);
@@ -67,10 +95,17 @@ export default function AtlasExplorer() {
         if (!instance.isStyleLoaded()) setMapError(true);
       }, 15000);
       instance.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right');
+      // Counted, not a boolean: a WebGL context restore reloads the style and drops the source,
+      // the layers and the pin image, and a second `true` would not re-run the effect that re-adds them.
       instance.on('style.load', () => {
         window.clearTimeout(styleTimeout);
         setMapError(false);
-        setMapReady(true);
+        setStyleEpoch(epoch => epoch + 1);
+      });
+      instance.on('styleimagemissing', event => {
+        if (event.id !== 'atlas-pin' || instance.hasImage('atlas-pin')) return;
+        const image = drawPinImage();
+        if (image) instance.addImage('atlas-pin', image, { pixelRatio: 2 });
       });
       instance.on('error', () => { if (!instance.isStyleLoaded()) setMapError(true); });
     }).catch(() => setMapError(true));
@@ -80,44 +115,34 @@ export default function AtlasExplorer() {
   useEffect(() => {
     const instance = map.current;
     if (!instance || !mapReady) return;
-    const source = instance.getSource('atlas') as import('maplibre-gl').GeoJSONSource | undefined;
     const matchingIds = new Set(filtered.map(p => p.id));
     const features = allPois.map(p => ({ type: 'Feature' as const, geometry: { type: 'Point' as const, coordinates: [Number(p.coordinates.longitude), Number(p.coordinates.latitude)] }, properties: { id: p.id, matched: matchingIds.has(p.id) } }));
     const geojson = { type: 'FeatureCollection' as const, features };
-    if (source) source.setData(geojson);
-    else {
-      const pin = document.createElement('canvas');
-      pin.width = 48;
-      pin.height = 56;
-      const context = pin.getContext('2d');
-      if (context) {
-        context.scale(2, 2);
-        context.beginPath();
-        context.moveTo(12, 27);
-        context.bezierCurveTo(10.5, 23.5, 3, 16.8, 3, 10.8);
-        context.arc(12, 10.8, 9, Math.PI, 0);
-        context.bezierCurveTo(21, 16.8, 13.5, 23.5, 12, 27);
-        context.closePath();
-        context.fillStyle = '#ff453a';
-        context.fill();
-        context.lineWidth = 1.25;
-        context.strokeStyle = '#ffd7d4';
-        context.stroke();
-        context.beginPath();
-        context.arc(12, 10.8, 3.2, 0, Math.PI * 2);
-        context.fillStyle = '#fff';
-        context.fill();
+    // Re-apply whatever is missing rather than assuming the first pass was the only one: after a
+    // style reload the map keeps running but the source, the layers and the image are all gone.
+    // Between styles every source and layer call throws, so a failed pass is skipped and retried
+    // on the next style load rather than being allowed to tear the whole explorer down.
+    try {
+      const source = instance.getSource('atlas') as import('maplibre-gl').GeoJSONSource | undefined;
+      if (source) source.setData(geojson);
+      else instance.addSource('atlas', { type: 'geojson', data: geojson });
+      if (!instance.hasImage('atlas-pin')) {
+        const image = drawPinImage();
+        if (image) instance.addImage('atlas-pin', image, { pixelRatio: 2 });
       }
-      instance.addImage('atlas-pin', context!.getImageData(0, 0, pin.width, pin.height), { pixelRatio: 2 });
-      instance.addSource('atlas', { type: 'geojson', data: geojson });
-      instance.addLayer({ id: 'atlas-pin-hit', type: 'circle', source: 'atlas', paint: { 'circle-radius': 18, 'circle-color': '#ff453a', 'circle-opacity': .001 } });
-      instance.addLayer({ id: 'atlas-pins', type: 'symbol', source: 'atlas', layout: { 'icon-image': 'atlas-pin', 'icon-anchor': 'bottom', 'icon-allow-overlap': true, 'icon-ignore-placement': true, 'icon-size': ['interpolate', ['linear'], ['zoom'], 2, .62, 7, .82] }, paint: { 'icon-opacity': ['case', ['get', 'matched'], .96, .2] } });
-      for (const layer of ['atlas-pin-hit', 'atlas-pins']) {
-        instance.on('mouseenter', layer, () => instance.getCanvas().style.cursor = 'pointer');
-        instance.on('mouseleave', layer, () => instance.getCanvas().style.cursor = '');
+      if (!instance.getLayer('atlas-pin-hit')) instance.addLayer({ id: 'atlas-pin-hit', type: 'circle', source: 'atlas', paint: { 'circle-radius': 18, 'circle-color': '#ff453a', 'circle-opacity': .001 } });
+      if (!instance.getLayer('atlas-pins')) instance.addLayer({ id: 'atlas-pins', type: 'symbol', source: 'atlas', layout: { 'icon-image': 'atlas-pin', 'icon-anchor': 'bottom', 'icon-allow-overlap': true, 'icon-ignore-placement': true, 'icon-size': ['interpolate', ['linear'], ['zoom'], 2, .62, 7, .82] }, paint: { 'icon-opacity': ['case', ['get', 'matched'], .96, .2] } });
+      if (!cursorHandlersBound.current) {
+        cursorHandlersBound.current = true;
+        for (const layer of ['atlas-pin-hit', 'atlas-pins']) {
+          instance.on('mouseenter', layer, () => instance.getCanvas().style.cursor = 'pointer');
+          instance.on('mouseleave', layer, () => instance.getCanvas().style.cursor = '');
+        }
       }
+    } catch {
+      // Mid-reload; the style.load that follows bumps the epoch and runs this again.
     }
-  }, [filtered, mapReady]);
+  }, [filtered, styleEpoch]);
 
   useEffect(() => {
     const instance = map.current;
