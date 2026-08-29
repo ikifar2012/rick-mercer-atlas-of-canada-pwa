@@ -176,7 +176,7 @@ export default function AtlasExplorer() {
       {mapError && <div className="map-fallback"><strong>The map is taking the scenic route.</strong><span>Search and every archive entry remain available in the sheet.</span></div>}
       <div className="map-attribution"><a href="https://openfreemap.org/">OpenFreeMap</a> · © <a href="https://www.openmaptiles.org/">OpenMapTiles</a> · Data © OpenStreetMap contributors</div>
     </div>
-    <aside className={`map-sheet ${sheetExpanded ? 'is-expanded' : ''}`} style={sheetExpanded ? { height: 'min(78svh, 46rem)', maxHeight: 'min(78svh, 46rem)' } : undefined} aria-label="Search and Atlas results">
+    <aside className={`map-sheet ${sheetExpanded ? 'is-expanded' : ''}`} aria-label="Search and Atlas results">
       <button className="sheet-handle" type="button" onClick={() => setSheetExpanded(value => !value)} aria-label={sheetExpanded ? 'Collapse search sheet' : 'Expand search sheet'}><span /></button>
       <div className="sheet-search-row">
         <label className="search-box"><span className="search-icon" aria-hidden="true">⌕</span><span className="sr-only">Search the archive</span><input value={filters.q} onFocus={() => setSheetExpanded(true)} onChange={e => { update('q', e.target.value); setSheetExpanded(true); }} placeholder="Search the Atlas" autoComplete="off" /></label>
