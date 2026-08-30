@@ -57,6 +57,7 @@ export default function AtlasExplorer() {
   const mapElement = useRef<HTMLDivElement>(null);
   const map = useRef<MapLibreMap | null>(null);
   const cursorHandlersBound = useRef(false);
+  const mapPress = useRef<{ pointerId: number; x: number; y: number } | null>(null);
 
   const mapReady = styleEpoch > 0;
   const seasons = useMemo(() => [...new Set(allPois.map(p => p.season))].sort((a, b) => b - a), []);
@@ -177,6 +178,19 @@ export default function AtlasExplorer() {
     setArchiveOpen(true);
     setSheetExpanded(false);
   };
+  const beginMapPress = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (!event.isPrimary) return;
+    mapPress.current = { pointerId: event.pointerId, x: event.clientX, y: event.clientY };
+  };
+  const endMapPress = (event: React.PointerEvent<HTMLDivElement>) => {
+    const press = mapPress.current;
+    mapPress.current = null;
+    if (!press || press.pointerId !== event.pointerId || !event.isPrimary || (event.target as Element).closest('a')) return;
+    // Let MapLibre own pans, pinches and drags. A location opens only after a
+    // stationary tap, rather than from the pointer-up event that ends a drag.
+    if (Math.hypot(event.clientX - press.x, event.clientY - press.y) > 10) return;
+    selectPlaceAt(event.clientX, event.clientY);
+  };
   const showArchivePoi = useCallback((poi: Poi) => { setArchiveActivePoi(poi); }, []);
   const closeArchivePoi = useCallback(() => setArchiveActivePoi(null), []);
   const closeArchive = useCallback(() => { setArchiveActivePoi(null); setArchiveOpen(false); }, []);
@@ -192,7 +206,7 @@ export default function AtlasExplorer() {
   };
 
   return <MotionConfig reducedMotion="user"><section className="explorer" aria-label="Atlas explorer">
-    <div className="map-stage" onClickCapture={event => selectPlaceAt(event.clientX, event.clientY)} onPointerUpCapture={event => selectPlaceAt(event.clientX, event.clientY)}>
+    <div className="map-stage" onPointerDownCapture={beginMapPress} onPointerUpCapture={endMapPress} onPointerCancelCapture={() => { mapPress.current = null; }}>
       <div ref={mapElement} className="map-canvas" aria-label="Interactive map of Atlas locations" />
       {mapError && <div className="map-fallback"><strong>The map is taking the scenic route.</strong><span>Search and every archive entry remain available in the sheet.</span></div>}
       <div className="map-attribution"><a href="https://openfreemap.org/">OpenFreeMap</a> · © <a href="https://www.openmaptiles.org/">OpenMapTiles</a> · Data © OpenStreetMap contributors</div>
