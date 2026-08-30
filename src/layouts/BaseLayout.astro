@@ -54,11 +54,12 @@ const structuredData = jsonLd.filter(Boolean);
 ---
 
 <!doctype html>
-<html lang={LOCALE}>
+<html lang={LOCALE} class={fullscreen ? 'app-theme--dark' : undefined}>
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta name="theme-color" content={themeColor} />
+    <meta name="color-scheme" content={fullscreen ? 'dark' : 'light'} />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content={fullscreen ? 'black' : 'default'} />
