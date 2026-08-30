@@ -141,7 +141,9 @@
    ========================================================================== */
 *, *::before, *::after { box-sizing: border-box; }
 html { min-width: 320px; scroll-behavior: smooth; }
+html.app-theme--dark { color-scheme: dark; background: var(--night-800); }
 body { margin: 0; min-width: 320px; background: var(--cream); line-height: var(--leading-normal); }
+html.app-theme--dark body { background: var(--night-800); }
 img, svg { display: block; max-width: 100%; }
 button, input, select { font: inherit; }
 button { cursor: pointer; }
