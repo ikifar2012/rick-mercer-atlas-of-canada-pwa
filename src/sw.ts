@@ -3,7 +3,9 @@
 // Aliased rather than redeclared so this file stays a plain script and the bundle stays free of module boilerplate.
 const sw = self as unknown as ServiceWorkerGlobalScope;
 
-const CACHE = 'atlas-shell-v2';
+// Bump when a cache-first shell asset (such as the manifest) changes so existing
+// installations receive the updated browser chrome and launch colors.
+const CACHE = 'atlas-shell-v3';
 const CORE = ['/', '/manifest.webmanifest', '/favicon.svg', '/og-default.svg'];
 
 sw.addEventListener('install', (event) => {
