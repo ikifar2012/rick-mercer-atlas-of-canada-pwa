@@ -8,6 +8,8 @@ interface Props {
   description?: string;
   image?: string;
   fullscreen?: boolean;
+  /** Browser chrome colour. Defaults to whatever the page's shell paints at the top of the viewport. */
+  themeColor?: string;
 }
 
 const {
@@ -15,6 +17,9 @@ const {
   description = 'Explore hundreds of Rick Mercer adventures across Canada by place, season, and year.',
   image = '/og-default.svg',
   fullscreen = false,
+  // The map shell is full-bleed dark (--night-800, the .map-canvas/.map-fallback surface);
+  // every other page opens on the cream shell's masthead (--paper).
+  themeColor = fullscreen ? '#0d0f13' : '#fffdf8',
 } = Astro.props;
 const canonical = new URL(Astro.url.pathname, Astro.site ?? Astro.url);
 ---
@@ -24,7 +29,8 @@ const canonical = new URL(Astro.url.pathname, Astro.site ?? Astro.url);
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="theme-color" content="#d62828" />
+    <meta name="theme-color" content={themeColor} />
+    <meta name="apple-mobile-web-app-status-bar-style" content={fullscreen ? 'black' : 'default'} />
     <meta name="description" content={description} />
     <meta name="generator" content={Astro.generator} />
     <link rel="canonical" href={canonical} />
