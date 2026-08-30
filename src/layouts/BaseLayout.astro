@@ -1,48 +1,89 @@
 ---
 import BrandMark from '../components/BrandMark.astro';
 import UpdatePrompt from '../components/UpdatePrompt';
+import {
+  LOCALE,
+  ORIGINAL_ATLAS_NAME,
+  ORIGINAL_ATLAS_URL,
+  PROJECT_REPO_URL,
+  SITE_DESCRIPTION,
+  SITE_NAME,
+  TITLE_SUFFIX,
+  UNOFFICIAL_NOTICE
+} from '../lib/site';
 import '../styles/global.css';
 
 interface Props {
+  /** Page-specific title. Omit on the homepage to use the full site name verbatim. */
   title?: string;
   description?: string;
   image?: string;
+  imageAlt?: string;
   fullscreen?: boolean;
   /** Browser chrome colour. Defaults to whatever the page's shell paints at the top of the viewport. */
   themeColor?: string;
+  /** Open Graph object type; place pages use `article`. */
+  ogType?: 'website' | 'article';
+  /** Keep utility pages such as 404 out of the index. */
+  noindex?: boolean;
+  /** JSON-LD objects rendered verbatim into a single ld+json block. */
+  jsonLd?: unknown[];
 }
 
 const {
-  title = 'The Unofficial Rick Mercer Atlas of Canada',
-  description = 'Explore hundreds of Rick Mercer adventures across Canada by place, season, and year.',
+  title,
+  description = SITE_DESCRIPTION,
   image = '/og-default.svg',
+  imageAlt = `Cover card for ${SITE_NAME}`,
   fullscreen = false,
   // The map shell is full-bleed dark (--night-800, the .map-canvas/.map-fallback surface);
   // every other page opens on the cream shell's masthead (--paper).
   themeColor = fullscreen ? '#0d0f13' : '#fffdf8',
+  ogType = 'website',
+  noindex = false,
+  jsonLd = []
 } = Astro.props;
-const canonical = new URL(Astro.url.pathname, Astro.site ?? Astro.url);
+
+// One place builds the document title, so pages only ever supply the human part.
+const documentTitle = title ? `${title} · ${TITLE_SUFFIX}` : SITE_NAME;
+const origin = Astro.site ?? new URL(Astro.url.origin);
+const canonical = new URL(Astro.url.pathname, origin);
+const imageUrl = new URL(image, origin);
+const issuesUrl = import.meta.env.PUBLIC_ISSUES_URL || PROJECT_REPO_URL;
+const structuredData = jsonLd.filter(Boolean);
 ---
 
 <!doctype html>
-<html lang="en">
+<html lang={LOCALE}>
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta name="theme-color" content={themeColor} />
     <meta name="apple-mobile-web-app-status-bar-style" content={fullscreen ? 'black' : 'default'} />
+    <title>{documentTitle}</title>
     <meta name="description" content={description} />
+    {noindex ? <meta name="robots" content="noindex, follow" /> : <meta name="robots" content="index, follow, max-image-preview:large" />}
     <meta name="generator" content={Astro.generator} />
     <link rel="canonical" href={canonical} />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <link rel="manifest" href="/manifest.webmanifest" />
-    <meta property="og:type" content="website" />
-    <meta property="og:title" content={title} />
+    <link rel="sitemap" type="application/xml" href="/sitemap-index.xml" />
+    <meta property="og:site_name" content={SITE_NAME} />
+    <meta property="og:locale" content="en_CA" />
+    <meta property="og:type" content={ogType} />
+    <meta property="og:title" content={documentTitle} />
     <meta property="og:description" content={description} />
     <meta property="og:url" content={canonical} />
-    <meta property="og:image" content={new URL(image, Astro.site ?? Astro.url)} />
+    <meta property="og:image" content={imageUrl} />
+    <meta property="og:image:alt" content={imageAlt} />
     <meta name="twitter:card" content="summary_large_image" />
-    <title>{title}</title>
+    <meta name="twitter:title" content={documentTitle} />
+    <meta name="twitter:description" content={description} />
+    <meta name="twitter:image" content={imageUrl} />
+    <meta name="twitter:image:alt" content={imageAlt} />
+    {structuredData.map((entry) => (
+      <script type="application/ld+json" is:inline set:html={JSON.stringify(entry)} />
+    ))}
   </head>
   <body>
     <a class="skip-link" href="#main">Skip to content</a>
@@ -55,10 +96,25 @@ const canonical = new URL(Astro.url.pathname, Astro.site ?? Astro.url);
         </nav>
       </header>
       <main id="main"><slot /></main>
-      <footer class="footer">
-        <p>An independent, unofficial fan archive. Not affiliated with Rick Mercer or CBC.</p>
-        <p><a href={import.meta.env.PUBLIC_ISSUES_URL || '#'}>Corrections & rights</a></p>
-      </footer>
+      {fullscreen ? (
+        <aside class="site-disclaimer" aria-label="About this archive">
+          <p>
+            <strong>{SITE_NAME}</strong> — a fan-made preservation archive, unaffiliated with Rick Mercer,
+            CBC, or the rights holders. Rebuilt from the original{' '}
+            <a href={ORIGINAL_ATLAS_URL} rel="noopener" target="_blank">{ORIGINAL_ATLAS_NAME}</a>.
+          </p>
+        </aside>
+      ) : (
+        <footer class="footer">
+          <p class="footer__notice">{UNOFFICIAL_NOTICE}</p>
+          <p class="footer__source">
+            This is a fan-made preservation archive: a modern, mobile-friendly reimplementation of the original{' '}
+            <a href={ORIGINAL_ATLAS_URL} rel="noopener" target="_blank">{ORIGINAL_ATLAS_NAME}</a>,
+            which remains the source of every entry here.
+          </p>
+          <p><a href={issuesUrl} rel="noopener">Corrections &amp; rights requests</a></p>
+        </footer>
+      )}
       <UpdatePrompt client:load />
     </div>
   </body>

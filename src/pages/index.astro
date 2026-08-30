@@ -2,12 +2,56 @@
 import BaseLayout from '../layouts/BaseLayout.astro';
 import AtlasExplorer from '../components/AtlasExplorer';
 import data from '../../data/pois.json';
+import {
+  LOCALE,
+  ORIGINAL_ATLAS_NAME,
+  ORIGINAL_ATLAS_URL,
+  SITE_DESCRIPTION,
+  SITE_NAME
+} from '../lib/site';
+
 const count = data.pois.length;
+const seasons = new Set(data.pois.map((poi) => poi.season)).size;
+const provinces = new Set(data.pois.map((poi) => poi.province).filter(Boolean)).size;
+const firstYear = Math.min(...data.pois.map((poi) => poi.broadcastYear));
+const lastYear = Math.max(...data.pois.map((poi) => poi.broadcastYear));
+
+const siteUrl = (Astro.site ?? new URL(Astro.url.origin)).toString();
+
+const website = {
+  '@context': 'https://schema.org',
+  '@type': 'WebSite',
+  '@id': `${siteUrl}#website`,
+  name: SITE_NAME,
+  alternateName: 'Unofficial Rick Mercer Atlas',
+  url: siteUrl,
+  description: SITE_DESCRIPTION,
+  inLanguage: LOCALE,
+  isBasedOn: {
+    '@type': 'WebSite',
+    name: ORIGINAL_ATLAS_NAME,
+    url: ORIGINAL_ATLAS_URL
+  },
+  potentialAction: {
+    '@type': 'SearchAction',
+    target: {
+      '@type': 'EntryPoint',
+      urlTemplate: `${siteUrl}?q={search_term_string}`
+    },
+    'query-input': 'required name=search_term_string'
+  }
+};
 ---
-<BaseLayout fullscreen>
+<BaseLayout jsonLd={[website]} fullscreen>
   <section class="hero-map">
     <div class="hero-map__intro">
-      <p><strong>{count} stories</strong> · 15 seasons · coast to coast to coast</p>
+      <h1>{SITE_NAME}</h1>
+      <p><strong>{count} stories</strong> · {seasons} seasons · {provinces} provinces and territories · {firstYear}–{lastYear}</p>
+      <p>
+        A fan-made preservation archive: a modern, mobile-friendly reimplementation of the original Rick Mercer
+        Atlas of Canada, which remains the source of every entry here. This project is not affiliated with,
+        authorized by, or endorsed by Rick Mercer, CBC, or the programme’s rights holders.
+      </p>
     </div>
     <AtlasExplorer client:load />
   </section>

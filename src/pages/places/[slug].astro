@@ -2,31 +2,140 @@
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import YouTubePlayer from '../../components/YouTubePlayer';
 import data from '../../../data/pois.json';
+import {
+  LOCALE,
+  ORIGINAL_ATLAS_NAME,
+  ORIGINAL_ATLAS_URL,
+  SITE_NAME,
+  clampSentence,
+  formatBroadcastDate
+} from '../../lib/site';
 
 export function getStaticPaths() {
   return data.pois.map((poi) => ({ params: { slug: poi.slug }, props: { poi } }));
 }
+
 const { poi } = Astro.props;
-const related = data.pois.filter((p) => p.id !== poi.id && (p.province === poi.province || p.season === poi.season)).slice(0, 3);
-const description = poi.description || `${poi.title}, filmed in ${poi.locationLabel}.`;
+const related = data.pois
+  .filter((p) => p.id !== poi.id && (p.province === poi.province || p.season === poi.season))
+  .slice(0, 3);
+
+const airedOn = formatBroadcastDate(poi.broadcastDate);
+// "Victoria, BC" plus the spelled-out province reads better in search results than either alone.
+const regionLabel = poi.province && !poi.locationLabel.includes(poi.province)
+  ? `${poi.locationLabel.replace(/,\s*[A-Z]{2}$/, '')}, ${poi.province}`
+  : poi.locationLabel;
+
+const summary = poi.description?.trim() || null;
+// Page title reads as a sentence: the story, then where it happened.
+const pageTitle = `${poi.title} · ${poi.locationLabel}`;
+
+const factSentence = airedOn
+  ? `Season ${poi.season}, episode ${poi.episode}, broadcast ${airedOn}.`
+  : `Season ${poi.season}, episode ${poi.episode}, broadcast in ${poi.broadcastYear}.`;
+// The place + season/episode tail is what makes each of the 486 descriptions unique, so the
+// archived summary is trimmed to fit around it rather than the other way round.
+const descriptionTail = `An archived Atlas stop in ${regionLabel}. ${factSentence}`;
+const metaDescription = summary
+  ? `${clampSentence(summary.replace(/([^.!?…])$/, '$1.'), Math.max(70, 200 - descriptionTail.length))} ${descriptionTail}`
+  : `${poi.title} — an archived Rick Mercer Atlas of Canada stop in ${regionLabel}. ${factSentence}`;
+
+const dek = summary || `An Atlas stop in ${regionLabel}.`;
+
+const origin = Astro.site ?? new URL(Astro.url.origin);
+const canonical = new URL(Astro.url.pathname, origin).toString();
+const siteUrl = origin.toString();
+const placeId = `${canonical}#place`;
+const latitude = Number(poi.coordinates.latitude);
+const longitude = Number(poi.coordinates.longitude);
+
+const place = {
+  '@type': 'Place',
+  '@id': placeId,
+  name: poi.locationLabel,
+  address: {
+    '@type': 'PostalAddress',
+    addressLocality: poi.locationLabel.split(',')[0].trim(),
+    // Only the records that carry a province/territory are known to be in Canada;
+    // the handful of overseas stops are left without a country rather than guessed at.
+    ...(poi.province ? { addressRegion: poi.province, addressCountry: 'CA' } : {})
+  },
+  geo: {
+    '@type': 'GeoCoordinates',
+    latitude,
+    longitude
+  }
+};
+
+const creativeWork = {
+  '@type': 'CreativeWork',
+  '@id': `${canonical}#segment`,
+  name: poi.title,
+  url: canonical,
+  inLanguage: LOCALE,
+  ...(summary ? { abstract: summary } : {}),
+  description: metaDescription,
+  datePublished: poi.broadcastDate,
+  contentLocation: { '@id': placeId },
+  thumbnailUrl: poi.video.thumbnailUrl,
+  isBasedOn: { '@type': 'WebSite', name: ORIGINAL_ATLAS_NAME, url: ORIGINAL_ATLAS_URL },
+  isPartOf: { '@id': `${siteUrl}#website` }
+};
+
+const breadcrumbs = {
+  '@type': 'BreadcrumbList',
+  itemListElement: [
+    { '@type': 'ListItem', position: 1, name: SITE_NAME, item: siteUrl },
+    { '@type': 'ListItem', position: 2, name: poi.title, item: canonical }
+  ]
+};
+
+const jsonLd = [{ '@context': 'https://schema.org', '@graph': [place, creativeWork, breadcrumbs] }];
 ---
-<BaseLayout title={`${poi.title} · Unofficial Rick Mercer Atlas`} description={description}>
+<BaseLayout
+  title={pageTitle}
+  description={metaDescription}
+  image={poi.video.thumbnailUrl}
+  imageAlt={`Video still from “${poi.title}”, filmed in ${poi.locationLabel}`}
+  ogType="article"
+  jsonLd={jsonLd}
+>
   <article class="detail-page">
     <header class="detail-hero">
       <div>
-        <a class="back-link" href="/">← Back to the map</a>
-        <p class="eyebrow">Season {poi.season} · Episode {poi.episode} · {poi.broadcastDate || poi.broadcastYear}</p>
+        <a class="back-link" href="/">← Back to the Atlas map</a>
+        <p class="eyebrow">Season {poi.season} · Episode {poi.episode} · {airedOn || poi.broadcastYear}</p>
         <h1>{poi.title}</h1>
-        <p class="detail-location">⌖ {poi.locationLabel}</p>
-        <p class="detail-dek">{description}</p>
+        <p class="detail-location">⌖ {regionLabel}</p>
+        <p class="detail-dek">{dek}</p>
       </div>
-      <div class="video-shell"><YouTubePlayer client:visible videoId={poi.video.youtubeId} title={poi.title} thumbnailUrl={poi.video.thumbnailUrl} /></div>
+      <div class="video-shell">
+        <YouTubePlayer client:visible videoId={poi.video.youtubeId} title={`${poi.title} — archived Atlas video`} thumbnailUrl={poi.video.thumbnailUrl} />
+      </div>
     </header>
-    <section class="detail-map-note">
-      <p class="eyebrow">Coordinates</p>
-      <p>{Number(poi.coordinates.latitude).toFixed(4)}° N · {Math.abs(Number(poi.coordinates.longitude)).toFixed(4)}° W</p>
-      <a href={`/?q=${encodeURIComponent(poi.locationLabel)}`}>See this area on the Atlas →</a>
+    <section class="detail-map-note" aria-labelledby="coordinates-heading">
+      <h2 class="eyebrow" id="coordinates-heading">Coordinates</h2>
+      <p>{latitude.toFixed(4)}° N · {Math.abs(longitude).toFixed(4)}° {longitude >= 0 ? 'E' : 'W'}</p>
+      <a href={`/?q=${encodeURIComponent(poi.locationLabel)}`}>See {poi.locationLabel} on the Atlas map →</a>
     </section>
-    {related.length > 0 && <section class="related"><p class="eyebrow">Keep exploring</p><h2>More from the archive</h2><div class="poi-grid poi-grid--compact">{related.map((item) => <a class="poi-card" href={`/places/${item.slug}`}><div class="poi-card__image"><img src={item.video.thumbnailUrl} alt="" loading="lazy" /></div><div class="poi-card__body"><p class="eyebrow">{item.locationLabel}</p><h3>{item.title}</h3></div></a>)}</div></section>}
+    {related.length > 0 && (
+      <section class="related" aria-labelledby="related-heading">
+        <p class="eyebrow">Keep exploring</p>
+        <h2 id="related-heading">More from the archive</h2>
+        <div class="poi-grid poi-grid--compact">
+          {related.map((item) => (
+            <a class="poi-card" href={`/places/${item.slug}`}>
+              <div class="poi-card__image">
+                <img src={item.video.thumbnailUrl} alt={`Video still from “${item.title}”`} loading="lazy" decoding="async" />
+              </div>
+              <div class="poi-card__body">
+                <p class="eyebrow">{item.locationLabel}</p>
+                <h3>{item.title}</h3>
+              </div>
+            </a>
+          ))}
+        </div>
+      </section>
+    )}
   </article>
 </BaseLayout>

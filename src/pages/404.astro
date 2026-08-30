@@ -1,6 +1,15 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
 ---
-<BaseLayout title="Lost in Canada · Unofficial Rick Mercer Atlas">
-  <section class="page-shell empty-page"><p class="eyebrow">404 · Wrong turn</p><h1>This stop isn’t on the map.</h1><p>Canada is enormous. It happens.</p><a class="button" href="/">Return to the Atlas</a></section>
+<BaseLayout
+  title="This stop isn’t on the map"
+  description="That page isn’t part of the archive. Head back to the map to search all 486 stops from the Rick Mercer Atlas of Canada."
+  noindex
+>
+  <section class="page-shell empty-page">
+    <p class="eyebrow">404 · Wrong turn</p>
+    <h1>This stop isn’t on the map.</h1>
+    <p>Canada is enormous. It happens.</p>
+    <a class="button" href="/">Return to the Atlas map</a>
+  </section>
 </BaseLayout>
