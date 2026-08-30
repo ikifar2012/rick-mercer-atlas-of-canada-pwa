@@ -102,8 +102,8 @@ export default function AtlasExplorer() {
         setMapError(false);
         setStyleEpoch(epoch => epoch + 1);
       });
-      instance.on('styleimagemissing', event => {
-        if (event.id !== 'atlas-pin' || instance.hasImage('atlas-pin')) return;
+      instance.setMissingStyleImageResolver(id => {
+        if (id !== 'atlas-pin' || instance.hasImage('atlas-pin')) return;
         const image = drawPinImage();
         if (image) instance.addImage('atlas-pin', image, { pixelRatio: 2 });
       });

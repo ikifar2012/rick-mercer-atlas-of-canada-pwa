@@ -18,6 +18,7 @@ function ArchiveModal({ query, onQueryChange, activePoi, onSelect, onBack, onClo
   const [renderedQuery, setRenderedQuery] = useState(query);
   const searchInput = useRef<HTMLInputElement>(null);
   const viewport = useRef<HTMLDivElement>(null);
+  const backButton = useRef<HTMLButtonElement>(null);
   const listScrollTop = useRef(0);
 
   const results = useMemo(() => {
@@ -30,6 +31,8 @@ function ArchiveModal({ query, onQueryChange, activePoi, onSelect, onBack, onClo
   if (query !== renderedQuery) {
     setRenderedQuery(query);
     setLimit(PAGE_SIZE);
+    listScrollTop.current = 0;
+    if (viewport.current) viewport.current.scrollTop = 0;
   }
 
   useEffect(() => {
@@ -54,7 +57,7 @@ function ArchiveModal({ query, onQueryChange, activePoi, onSelect, onBack, onClo
   // The list stays mounted behind the detail view, so restore where the reader left off.
   useLayoutEffect(() => { if (!activePoi && viewport.current) viewport.current.scrollTop = listScrollTop.current; }, [activePoi]);
   // Matches the autoFocus the list used to get by remounting whenever the detail view closed.
-  useEffect(() => { if (!activePoi) searchInput.current?.focus(); }, [activePoi]);
+  useEffect(() => { (activePoi ? backButton : searchInput).current?.focus(); }, [activePoi]);
 
   const hideList = activePoi ? { display: 'none' } : undefined;
 
@@ -63,7 +66,7 @@ function ArchiveModal({ query, onQueryChange, activePoi, onSelect, onBack, onClo
     <label className="archive-modal__search" style={hideList}><span aria-hidden="true">⌕</span><span className="sr-only">Search all places</span><input ref={searchInput} value={query} onChange={event => onQueryChange(event.target.value)} placeholder="Search all places" autoFocus /></label>
     <p className="archive-modal__count" style={hideList}>{results.length} adventures</p>
     <ScrollArea className="archive-modal__results" style={hideList} viewportRef={viewport} aria-label="All adventures">{results.slice(0, limit).map(poi => <button className="archive-modal__card" type="button" onClick={() => { if (viewport.current) listScrollTop.current = viewport.current.scrollTop; onSelect(poi); }} key={poi.id}><img src={poi.video.thumbnailUrl} alt="" loading="lazy" /><span><strong>{poi.title}</strong><small>{poi.locationLabel} · S{poi.season} E{poi.episode} · {poi.broadcastYear}</small></span></button>)}</ScrollArea>
-    {activePoi && <ScrollArea className="archive-modal__detail" aria-label="Adventure details"><div className="archive-modal__media"><YouTubePlayer videoId={activePoi.video.youtubeId} title={activePoi.title} thumbnailUrl={activePoi.video.thumbnailUrl} /></div><p>{activePoi.description || `An Atlas stop in ${activePoi.locationLabel}.`}</p><dl className="place-detail-card__facts"><div><dt>Aired</dt><dd>{activePoi.broadcastDate || activePoi.broadcastYear}</dd></div><div><dt>Region</dt><dd>{activePoi.province || 'Canada'}</dd></div></dl><button className="archive-modal__back" type="button" onClick={onBack}>‹ All places</button></ScrollArea>}
+    {activePoi && <ScrollArea className="archive-modal__detail" aria-label="Adventure details"><div className="archive-modal__media"><YouTubePlayer videoId={activePoi.video.youtubeId} title={activePoi.title} thumbnailUrl={activePoi.video.thumbnailUrl} /></div><p>{activePoi.description || `An Atlas stop in ${activePoi.locationLabel}.`}</p><dl className="place-detail-card__facts"><div><dt>Aired</dt><dd>{activePoi.broadcastDate || activePoi.broadcastYear}</dd></div><div><dt>Region</dt><dd>{activePoi.province || 'Canada'}</dd></div></dl><button ref={backButton} className="archive-modal__back" type="button" onClick={onBack}>‹ All places</button></ScrollArea>}
   </motion.section></motion.div>;
 }
 
