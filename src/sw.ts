@@ -5,8 +5,8 @@ const sw = self as unknown as ServiceWorkerGlobalScope;
 
 // Bump when a cache-first shell asset (such as the manifest) changes so existing
 // installations receive the updated browser chrome and launch colors.
-const CACHE = 'atlas-shell-v3';
-const CORE = ['/', '/manifest.webmanifest', '/favicon.svg', '/og-default.svg'];
+const CACHE = 'atlas-shell-v4';
+const CORE = ['/', '/manifest.webmanifest?v=4', '/favicon.svg', '/og-default.svg'];
 
 sw.addEventListener('install', (event) => {
   event.waitUntil(caches.open(CACHE).then((cache) => cache.addAll(CORE)));
@@ -32,6 +32,16 @@ sw.addEventListener('fetch', (event) => {
       caches.open(CACHE).then((cache) => cache.put(request, copy));
       return response;
     }).catch(async () => (await caches.match(request)) || (await caches.match('/')) || Response.error()));
+    return;
+  }
+
+  // The browser can retain manifest values (including theme_color) across app
+  // launches. Never let a stale offline response win while the network exists.
+  if (url.pathname === '/manifest.webmanifest') {
+    event.respondWith(fetch(request).then((response) => {
+      if (response.ok) caches.open(CACHE).then((cache) => cache.put(request, response.clone()));
+      return response;
+    }).catch(async () => (await caches.match(request)) || Response.error()));
     return;
   }
 
