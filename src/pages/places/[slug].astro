@@ -46,6 +46,8 @@ const origin = Astro.site ?? new URL(Astro.url.origin);
 const canonical = new URL(Astro.url.pathname, origin).toString();
 const siteUrl = origin.toString();
 const placeId = `${canonical}#place`;
+const latitude = Number(poi.coordinates.latitude);
+const longitude = Number(poi.coordinates.longitude);
 
 const place = {
   '@type': 'Place',
@@ -60,8 +62,8 @@ const place = {
   },
   geo: {
     '@type': 'GeoCoordinates',
-    latitude: Number(poi.coordinates.latitude),
-    longitude: Number(poi.coordinates.longitude)
+    latitude,
+    longitude
   }
 };
 
@@ -113,7 +115,7 @@ const jsonLd = [{ '@context': 'https://schema.org', '@graph': [place, creativeWo
     </header>
     <section class="detail-map-note" aria-labelledby="coordinates-heading">
       <h2 class="eyebrow" id="coordinates-heading">Coordinates</h2>
-      <p>{Number(poi.coordinates.latitude).toFixed(4)}° N · {Math.abs(Number(poi.coordinates.longitude)).toFixed(4)}° W</p>
+      <p>{latitude.toFixed(4)}° N · {Math.abs(longitude).toFixed(4)}° {longitude >= 0 ? 'E' : 'W'}</p>
       <a href={`/?q=${encodeURIComponent(poi.locationLabel)}`}>See {poi.locationLabel} on the Atlas map →</a>
     </section>
     {related.length > 0 && (
